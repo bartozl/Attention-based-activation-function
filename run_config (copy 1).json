@@ -1,0 +1,43 @@
+{
+    "act_fn": [
+        [
+            "antirelu",
+            "identity",
+            "relu",
+            "sigmoid"
+        ],
+        [
+            "identity",
+            "relu",
+            "sigmoid",
+            "tanh"
+        ],
+        [
+            "antirelu",
+            "identity",
+            "sigmoid",
+            "tanh"
+        ]
+    ],
+    "lambda_l1": [
+    0
+    ],
+    "normalize": [
+        "None",
+        "Softmax",
+        "Sigmoid"
+    ],
+    "init": [
+        "random",
+        "uniform",
+        "normal"
+    ],
+    "dataset":"MNIST",
+    "subset":0.2,
+    "epochs": 200,
+    "random_seed": 1,
+    "combinator": "MLP2",
+    "k": 96,
+    "batch_size": 256,
+    "alpha_dropout": 0.2
+}
