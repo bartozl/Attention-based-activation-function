@@ -44,10 +44,6 @@ class MIX(nn.Module):
         elif combinator in ['MLP_ATT', 'MLP_ATT_neg']:
             self.MLP_list = nn.ModuleList([MLP_ATT(combinator) for _ in range(neurons)])
 
-        elif combinator == 'MLP_ATT_b':
-            self.MLP_list = nn.ModuleList([MLP_ATT(combinator) for _ in range(neurons)])
-            self.beta = nn.Parameter(torch.FloatTensor(neurons, len(act_fn)))
-
 
     # @torch.jit.script_method
     # noinspection PyArgumentList
@@ -76,7 +72,7 @@ class MIX(nn.Module):
                     alpha = self.act_module[normalize.lower()](alpha)
                 res = torch.sum(alpha * activations, axis=-1)
 
-            elif combinator in ['MLP_ATT', 'MLP_ATT_b', 'MLP_ATT_neg']:
+            elif combinator in ['MLP_ATT', 'MLP_ATT_neg']:
                 alpha = []
                 for i, mod in enumerate(self.MLP_list):
                     alpha_i = self.act_module['softmax'](mod(activations[:, i, :]))  # [256,4] or [256,8]
@@ -84,26 +80,12 @@ class MIX(nn.Module):
                 alpha = torch.cat(alpha, dim=1)  # [256, 128, 4] or [256, 128, 8]
                 if alpha_dropout is not None:
                     alpha = nn.Dropout(alpha_dropout)(alpha)
-
-                if combinator == 'MLP_ATT_b':
-                    beta = self.act_module['tanh'](self.beta)
-                    res = torch.sum(beta * alpha * activations, axis=-1)
-                    # uncomment for hard routing
-                    '''
-                    if self.training is False:
-                        alpha_max, idx = torch.max(alpha, dim=2)
-                        beta = torch.sign(self.beta)
-                        mask = torch.arange(alpha.size(-1)).reshape(1, 1, -1) == idx.unsqueeze(-1)
-                        # print(mask.shape, beta.shape, alpha_max.shape)
-                        res = beta * activations[mask].reshape(alpha_max.shape)
-                    '''
-                else:
-                    res = torch.sum(alpha * activations, axis=-1)
-                    # uncomment for hard routing
-                    if self.training is False:
-                        alpha_max, idx = torch.max(alpha, dim=2)
-                        mask = torch.arange(alpha.size(-1)).reshape(1, 1, -1) == idx.unsqueeze(-1)
-                        res = activations[mask].reshape(alpha_max.shape)
+                res = torch.sum(alpha * activations, axis=-1)
+                # uncomment for hard routing
+                if self.training is False:
+                    alpha_max, idx = torch.max(alpha, dim=2)
+                    mask = torch.arange(alpha.size(-1)).reshape(1, 1, -1) == idx.unsqueeze(-1)
+                    res = activations[mask].reshape(alpha_max.shape)
 
             else:  # combinator in ['MLP1', 'MLP2', 'MLP3', 'MLP4', 'MLP5', 'MLPr']
                 res = []
