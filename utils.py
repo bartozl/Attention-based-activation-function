@@ -32,13 +32,13 @@ def create_save_dir(run_config, init, normalize, act_list, lambda_l1, drop, test
         save_dir = f'../experiments/{run_config["dataset"]}/{run_config["combinator"]}' \
                    f'/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
     elif run_config['combinator'] in MLP_LIST:
-        save_dir = f'../experiments/{run_config["dataset"]}/{run_config["combinator"]}' \
+        save_dir = f'../experiments/{run_config["dataset"]}/MLP/{run_config["combinator"]}' \
                    f'/init_None/norm_{normalize}/{acts}/{lambda_l1}/'
     elif run_config['combinator'] == 'Kwinners':
         save_dir = f'../experiments/{run_config["dataset"]}/' \
                    f'{run_config["combinator"]}/{run_config["k"]}/'
     elif run_config['combinator'] in ATT_LIST:
-        save_dir = f'../experiments/{run_config["dataset"]}/{run_config["combinator"]}' \
+        save_dir = f'../experiments/{run_config["dataset"]}/ATT/{run_config["combinator"]}' \
                    f'/init_None/norm_{normalize}/drop_{drop}/{acts}/{lambda_l1}/'
     else:
         print('ERROR: unknown combinator')
@@ -189,7 +189,7 @@ n_samples = 500
 input_ = torch.Tensor(np.linspace(-2, 2, n_samples).astype(np.float32)).repeat(neurons, 1).to(device)
 
 
-def save_grid_fig(dest_path, out, fixed_out, epoch, nx=5, ny=4, sizex=32, sizey=18):
+def grid_activations(dest_path, out, fixed_out, epoch, nx=5, ny=4, sizex=32, sizey=18):
     tick_fontsize = 15
     fig, ax = plt.subplots(nx, ny)
     fig.set_size_inches(sizex, sizey)
@@ -209,6 +209,41 @@ def save_grid_fig(dest_path, out, fixed_out, epoch, nx=5, ny=4, sizex=32, sizey=
     plt.savefig(f'{dest_path}/{epoch}_tot.png', bbox_inches='tight', dpi=200)
     plt.close()
 
+def grid_accuracy(results, label, ax, i, first=False, color='green'):
+    title_fontsize = 45
+    label_fontsize = 35
+    tick_fontsize = 30
+    legend_fontsize = 25
+    alpha = 1
+    lw = 3
+    if first:
+        ax[0][i].set_title('Train accuracy', fontsize=title_fontsize)
+        ax[1][i].set_title('Test accuracy', fontsize=title_fontsize)
+        ax[0][i].set_xlabel('epochs', fontsize=label_fontsize)
+        ax[1][i].set_xlabel('epochs', fontsize=label_fontsize)
+        ax[0][i].set_ylabel('accuracy [%]', fontsize=label_fontsize)
+        ax[1][i].set_ylabel('accuracy [%]', fontsize=label_fontsize)
+        ax[0][i].set_ylim(bottom=80, top=102)
+        ax[1][i].set_ylim(bottom=80, top=98)
+        plt.setp(ax[0][i].get_xticklabels(), fontsize=tick_fontsize)
+        plt.setp(ax[1][i].get_xticklabels(), fontsize=tick_fontsize)
+        plt.setp(ax[0][i].get_yticklabels(), fontsize=tick_fontsize)
+        plt.setp(ax[1][i].get_yticklabels(), fontsize=tick_fontsize)
+
+    ax[0][i].plot(list(results['train_acc'].keys()), list(results['train_acc'].values()),
+                  color=color, label=label, alpha=1, linewidth=lw)
+    ax[1][i].plot(list(results['test_acc'].keys()), list(results['test_acc'].values()),
+                  label=label, color=color, alpha=alpha, linewidth=lw)
+
+    ax[0][i].legend(fontsize=legend_fontsize, loc="best")
+    ax[1][i].legend(fontsize=legend_fontsize, loc="best")
+
+    for j, label_ax in enumerate(ax[0][i].xaxis.get_ticklabels()):
+        if (j + 1) % 20 != 0:
+            label_ax.set_visible(False)
+    for j, label_ax in enumerate(ax[1][i].xaxis.get_ticklabels()):
+        if (j + 1) % 20 != 0:
+            label_ax.set_visible(False)
 
 def compute_activations(results, epoch, path):
     state_dict = torch.load(f'{path}/weights/{epoch}.pth')  # load the model of the whole original network
