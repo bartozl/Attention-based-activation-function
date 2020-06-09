@@ -43,84 +43,38 @@ def plot_activations(path_dict):
                     continue
                 if int(epoch) == 1:  # store the first epoch activation
                     fixed_output = output
-                utils.save_grid_fig(dest_path, output, fixed_output, epoch)
+                utils.grid_activations(dest_path, output, fixed_output, epoch)
                 if int(epoch) == 200:
-                    utils.save_grid_fig(dest_path, output, fixed_output, epoch, nx=11, ny=11)
+                    utils.grid_activations(dest_path, output, fixed_output, epoch, nx=11, ny=11)
 
 
 def plot_accuracy(path_dict, dest_path):
     path_dict_ = path_dict.copy()
-    title_fontsize = 45
-    label_fontsize = 35
-    tick_fontsize = 30
-    legend_fontsize = 25
-    alpha = 1
-    lw = 3
-
-    pairs_to_compare = [['MLP1', 'L_unif_none']]  # it must be a list of lists!
-
+    pairs_to_compare = [['MLP2', 'L_unif_none']]  # it must be a list of lists!
     for relu_path in path_dict_['relu']:
         with open(relu_path + '/results.json', 'r') as f:
             results_relu = json.load(f)
         if results_relu['batch_size'] == 256:
             break
-    relu_label = 'relu'
-
-    del path_dict_['relu']
-    del path_dict_['sigmoid']
-    del path_dict_['antirelu']
-    del path_dict_['tanh']
-
+    del path_dict_['relu'], path_dict_['sigmoid'], path_dict_['antirelu'], path_dict_['tanh']
     for pair in pairs_to_compare:
         for act in path_dict_.keys():
             Path(f'{dest_path}/{act}/').mkdir(parents=True, exist_ok=True)
-
             fig, ax = plt.subplots(2, 2)
             fig.tight_layout()
             fig.set_size_inches(32, 18)
-
-            for i in range(2):
-                ax[0][i].set_title('Train accuracy', fontsize=title_fontsize)
-                ax[1][i].set_title('Test accuracy', fontsize=title_fontsize)
-                ax[0][i].set_xlabel('epochs', fontsize=label_fontsize)
-                ax[1][i].set_xlabel('epochs', fontsize=label_fontsize)
-                ax[0][i].set_ylabel('accuracy [%]', fontsize=label_fontsize)
-                ax[1][i].set_ylabel('accuracy [%]', fontsize=label_fontsize)
-                ax[0][i].set_ylim(bottom=80, top=102)
-                ax[1][i].set_ylim(bottom=80, top=98)
-                plt.setp(ax[0][i].get_xticklabels(), fontsize=tick_fontsize)
-                plt.setp(ax[1][i].get_xticklabels(), fontsize=tick_fontsize)
-                plt.setp(ax[0][i].get_yticklabels(), fontsize=tick_fontsize)
-                plt.setp(ax[1][i].get_yticklabels(), fontsize=tick_fontsize)
-                ax[0][i].plot(list(results_relu['train_acc'].keys()), list(results_relu['train_acc'].values()),
-                              color="blue",
-                              label=relu_label, alpha=1, linewidth=lw)
-                ax[1][i].plot(list(results_relu['test_acc'].keys()), list(results_relu['test_acc'].values()),
-                              label=relu_label,
-                              color="blue", alpha=alpha, linewidth=lw)
-                for j, label_ax in enumerate(ax[0][i].xaxis.get_ticklabels()):
-                    if (j + 1) % n_epochs != 0:
-                        label_ax.set_visible(False)
-                for j, label_ax in enumerate(ax[1][i].xaxis.get_ticklabels()):
-                    if (j + 1) % n_epochs != 0:
-                        label_ax.set_visible(False)
-
+            utils.grid_accuracy(results_relu, 'relu', ax, 0, first=True, color='blue')
+            utils.grid_accuracy(results_relu, 'relu', ax, 1, first=True, color='blue')
             i = 0
             for path in sorted(path_dict_[act]):
                 with open(path + '/results.json', 'r') as f:
                     results = json.load(f)
                 if results['run_name'] not in pair:
                     continue
-                label = results['run_name']
                 color = 'green' if results['run_name'] == pair[0] else 'red'
-                ax[0][i].plot(list(results['train_acc'].keys()), list(results['train_acc'].values()), color=color,
-                              label=label, alpha=alpha, linewidth=lw)
-                ax[1][i].plot(list(results['test_acc'].keys()), list(results['test_acc'].values()), color=color,
-                              label=label, alpha=alpha, linewidth=lw)
-                ax[0][i].legend(fontsize=legend_fontsize, loc='center right')
-                ax[1][i].legend(fontsize=legend_fontsize, loc='center right')
+                utils.grid_accuracy(results, results['run_name'], ax, i, color=color)
                 i += 1
-                print(pairs_to_compare)
+            print(dest_path + '/{}/{}_vs_{}.png'.format(act, pair[0], pair[1]))
             plt.savefig(dest_path + '/{}/{}_vs_{}.png'.format(act, pair[0], pair[1]))
             plt.close()
 
