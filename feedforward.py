@@ -10,29 +10,24 @@ import utils
 
 
 def train(config):
-    train_acc_per_epoch = OrderedDict()
-    print('number of parameters', sum(p.numel() for p in config['network'].parameters() if p.requires_grad))
+    train_acc_per_epoch = OrderedDict()  # store train accuracy history
+    print('number of trained parameters', sum(p.numel() for p in config['network'].parameters() if p.requires_grad))
     for epoch in range(1, config['epochs'] + 1):
-        time1 = time()
-        config['network'].train()
+        time1 = time()  # time per epoch
+        config['network'].train()  # train mode
         acc = 0
         for idx, (X_batch, y_batch) in enumerate(config['data_train']):
             config['optimizer'].zero_grad()
-
             X_batch = X_batch.to(config['device']).view(X_batch.shape[0], -1)
             y_batch = y_batch.to(config['device'])
             y_pred = config['network'](X_batch).to(config['device'])
-
             loss = F.nll_loss(y_pred, y_batch)
             loss.backward()
             config['optimizer'].step()
-
             predicted = torch.argmax(y_pred.data, 1)
             acc += (predicted == y_batch).sum().item()
-
         if epoch % config['save_every'] == 0:
             train_acc_per_epoch[str(epoch)] = utils.save_state(config, epoch, acc)
-
         print(f"Epoch {epoch} - "
               f"Accuracy: {round(100 * acc / config['len_train'], 3):.3f}% - "
               f"Time(epoch): {timedelta(seconds=time() - time1)} - "
@@ -47,9 +42,9 @@ def test(config):
     model_list = sorted(list(map(lambda m: int(m.split('.')[0]), os.listdir(load_dir))))
     for epoch in model_list:
         model = load_dir + str(epoch) + '.pth'
+        print(model)
         config['network'].load_state_dict(torch.load(model))
         Y_batch, Predicted = [], []
-
         with torch.no_grad():
             config['network'].eval()
             acc = 0
@@ -57,12 +52,10 @@ def test(config):
                 X_batch = X_batch.to(config['device']).view(X_batch.shape[0], -1)
                 y_batch = y_batch.to(config['device'])
                 y_pred = config['network'](X_batch).to(config['device'])
-
                 predicted = torch.argmax(y_pred.data, 1)
                 acc += (predicted == y_batch).sum().item()
                 Y_batch += y_batch
                 Predicted += predicted
-
         test_acc = 100 * acc / config['len_test']
         test_acc_per_epoch[str(epoch)] = test_acc
         print(f'epoch: {epoch} - test accuracy: {round(test_acc, 3):.3f}')
@@ -73,11 +66,11 @@ def test(config):
 # =====================================================================
 
 def main(config):
-    train_acc_per_epoch, test_acc_per_epoch = [], []
+    train_acc_per_epoch, test_acc_per_epoch = [], []  # store accuracies history
 
     if not test_only:
         print('...Training...')
-        train_acc_per_epoch, alpha_per_epoch = train(config)
+        train_acc_per_epoch = train(config)
 
     print('...Testing...')
     test_acc_per_epoch = test(config)
@@ -93,10 +86,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     test_only, save_test = args.test_only, args.save_test
     run_configs = utils.load_run_config('run_config.json')
-    np.random.seed(run_configs['random_seed'])
-    torch.manual_seed(run_configs['random_seed'])
-    configs = utils.generate_configs(run_configs, test_only)
-    time0 = time()
+    np.random.seed(run_configs['random_seed'])  # allows reproducibility
+    torch.manual_seed(run_configs['random_seed'])  # allows reproducibility
+    configs = utils.generate_configs(run_configs, test_only)  # list of configurations (=dict) to be trained
+    time0 = time()  # total run time
     for i, conf in enumerate(configs):
         print(f'[{i + 1}/{len(configs)}] {conf["save_dir"]}')
         try:
