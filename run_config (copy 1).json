@@ -39,5 +39,5 @@
     "combinator": "MLP2",
     "k": 96,
     "batch_size": 256,
-    "alpha_dropout": 0.2
+    "alpha_dropout": [0.2]
 }
