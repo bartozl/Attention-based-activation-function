@@ -6,7 +6,7 @@ The aim of this project is to study a new activation function, based on the comb
 
 ## 1. Linear combinator
 
-The activations function is defined as follow:
+The activations function is defined as follows:
 
 ![](https://latex.codecogs.com/svg.latex?g_j%28s_j%29%20%3D%20%5Csum_i%20%5Calpha_%7Bi%7D%20*%20f_i%28s_j%29)
 
