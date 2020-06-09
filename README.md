@@ -7,9 +7,9 @@ The aim of this project is to study a new activation function, based on the comb
 ## 1. Linear combinator
 
 The activations function is defined as follow:
-$
+$$
 g_j(s_j) = \sum_i α_i * f_i(s_j)
-$
+$$
 Where
 $$
 α_i = parameters\ to\ be\ learned \\
@@ -36,7 +36,9 @@ $$
 
 Here, as in the first case, the activation function is the linear combination of the basic activation functions. However, the α parameters (*i.e.* the weights of the combination)  are obtained as the output of a MLP. In pseudo-formula:
 $$
+\begin{align*}
 g_j(s_j) = \sum_i α_i * f_i(s_j)
+\end{align*}
 $$
 ​																					with
 $$
