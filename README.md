@@ -14,7 +14,7 @@ The activation function is defined as follows:
 - ![](https://latex.codecogs.com/svg.latex?%5Calpha_%7Bi%7D) parameters to be learned
 - ![](https://latex.codecogs.com/svg.latex?f_i) base activation function (e.g. _relu_, _sigmoid_, etc.)
 - ![](https://latex.codecogs.com/svg.latex?s)  input
-- ![](https://latex.codecogs.com/svg.latex?i)number of neurons of the layer
+- ![](https://latex.codecogs.com/svg.latex?i) number of neurons of the layer
 - ![](https://latex.codecogs.com/svg.latex?j) number of base activation functions
 
 
