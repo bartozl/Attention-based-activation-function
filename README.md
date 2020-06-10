@@ -27,7 +27,7 @@ The activations function is defined as follow:
 
 The activations function is now computed by a Multi Layer Perceptron that take as input the output of the basic activations (fit with the input).  In pseudo-formula:
 
-​														$g_j(s_j) = MLP_J(f_1(s_j), ... , f_i(s_j))$
+​														$g_j(s_j) = MLP_j(f_1(s_j), ... , f_i(s_j))$
 
 
 
@@ -43,7 +43,7 @@ Here, as in the first case, the activation function is the linear combination of
 
 ​																					with
 
-​													$α_i \in softmax(MLP_J(f_1(s_j), ... , f_i(s_j)))$
+​													$α_i \in softmax(MLP_j(f_1(s_j), ... , f_i(s_j)))$
 
 
 
