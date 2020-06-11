@@ -42,7 +42,7 @@ def test(config):
     model_list = sorted(list(map(lambda m: int(m.split('.')[0]), os.listdir(load_dir))))
     for epoch in model_list:
         model = load_dir + str(epoch) + '.pth'
-        print(model)
+        # print(model)
         config['network'].load_state_dict(torch.load(model))
         Y_batch, Predicted = [], []
         with torch.no_grad():
@@ -83,12 +83,13 @@ if __name__ == '__main__':
     parser.add_argument("--dataset", type=str, default="MNIST")
     parser.add_argument("-test_only", action="store_true")
     parser.add_argument("-save_test", action="store_true")
+    parser.add_argument("-colab", action="store_true")
     args = parser.parse_args()
     test_only, save_test = args.test_only, args.save_test
     run_configs = utils.load_run_config('run_config.json')
     np.random.seed(run_configs['random_seed'])  # allows reproducibility
     torch.manual_seed(run_configs['random_seed'])  # allows reproducibility
-    configs = utils.generate_configs(run_configs, test_only)  # list of configurations (=dict) to be trained
+    configs = utils.generate_configs(run_configs, test_only, args.colab)  # list of configurations (=dict) to be trained
     time0 = time()  # total run time
     for i, conf in enumerate(configs):
         print(f'[{i + 1}/{len(configs)}] {conf["save_dir"]}')

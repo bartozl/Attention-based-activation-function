@@ -54,13 +54,17 @@ def create_save_dir(run_config, init, normalize, act_list, lambda_l1, drop, test
     return save_dir
 
 
-def load_dataset(dataset_name, subset, batch_size):
+def load_dataset(dataset_name, subset, batch_size, colab):
     if dataset_name == 'MNIST':
         transform = transforms.Compose([transforms.ToTensor(),
                                         transforms.Normalize((0.5,), (0.5,)),
                                         ])
-        train_dataset = datasets.MNIST('../datasets/', download=True, train=True, transform=transform)
-        test_dataset = datasets.MNIST('../datasets/', download=True, train=False, transform=transform)
+        if colab:
+            data_path = '~/../content/'
+        else:
+            data_path = '../datasets/'
+        train_dataset = datasets.MNIST(data_path, download=True, train=True, transform=transform)
+        test_dataset = datasets.MNIST(data_path, download=True, train=False, transform=transform)
         len_train, len_test = int(len(train_dataset) * subset), int(len(test_dataset) * subset)
         subset_indices_train, subset_indices_test = range(len_train), range(len_test)
         data_train = DataLoader(train_dataset, batch_size=batch_size, sampler=SubsetRandomSampler(subset_indices_train))
@@ -80,13 +84,13 @@ def load_run_config(run_config):
     return run_config
 
 
-def generate_configs(run_config, test_only):
+def generate_configs(run_config, test_only, colab):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     savedirs, configs = [], []
     data_train, data_test, len_train, len_test = load_dataset(run_config['dataset'],
                                                               run_config['subset'],
-                                                              run_config['batch_size'])
-    print(run_config['init'])
+                                                              run_config['batch_size'],
+                                                              colab)
     for norm_ in run_config['normalize']:
         for act_ in run_config['act_fn']:
             for lamb_ in run_config['lambda_l1']:
