@@ -22,6 +22,15 @@ def train(config):
             y_batch = y_batch.to(config['device'])
             y_pred = config['network'](X_batch).to(config['device'])
             loss = F.nll_loss(y_pred, y_batch)
+            '''
+            if config['lambda_l1'] != 0:
+                reg_loss = 0
+                for name, param in config['network'].named_parameters():
+                    print(name)
+                    l1_loss = F.l1_loss(param, target=torch.zeros_like(param), size_average=False)
+                    reg_loss += l1_loss
+                loss += config['lambda_l1'] * reg_loss
+            '''
             loss.backward()
             config['optimizer'].step()
             predicted = torch.argmax(y_pred.data, 1)
@@ -42,7 +51,6 @@ def test(config):
     model_list = sorted(list(map(lambda m: int(m.split('.')[0]), os.listdir(load_dir))))
     for epoch in model_list:
         model = load_dir + str(epoch) + '.pth'
-        # print(model)
         config['network'].load_state_dict(torch.load(model))
         Y_batch, Predicted = [], []
         with torch.no_grad():
