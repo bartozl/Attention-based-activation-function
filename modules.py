@@ -72,9 +72,6 @@ class MLP_ATT(nn.Module):
         super(MLP_ATT, self).__init__()
 
         if combinator in ['MLP_ATT', 'MLP_ATT_b']:  # 105738 parameters
-            self.combinator = combinator
-            if combinator == 'MLP_ATT_b':
-                self.beta = nn.Parameter(torch.FloatTensor(4).uniform_(-0.5, 0.5))
             self.mlp = torch.nn.Sequential(nn.Linear(4, 3),
                                            nn.ReLU(),
                                            nn.Dropout(0.2),
@@ -87,16 +84,6 @@ class MLP_ATT(nn.Module):
                                            nn.Linear(5, 8),
                                            )
 
-        if combinator == 'MLP_ATT2':  # 106890 parameters
-            self.mlp = torch.nn.Sequential(nn.Linear(4, 4),
-                                           nn.ReLU(),
-                                           nn.Dropout(0.2),
-                                           nn.Linear(4, 4),
-                                           )
-
     def forward(self, x):
-        if self.combinator == 'MLP_ATT_b':
-            x = x + self.beta
-            # print(x.shape)
         x = self.mlp(x)
         return x
