@@ -26,11 +26,12 @@ class MIX(nn.Module):
         if combinator == 'Linear':  # 3 different alpha initialization for the Linear combinator
             assert init in ['normal', 'uniform', 'random'], "init must be 'normal','uniform','random'"
             if init == 'normal':  # sample taken from a gaussian N(0,1)
-                self.alpha = nn.Parameter(torch.randn(neurons, len(act_fn)))
+                self.alpha = nn.Parameter(torch.randn(neurons, len(act_fn)), requires_grad=True)
             elif init == 'uniform':  # same init for each alpha, equal to 1/(num of act_fn)
-                self.alpha = nn.Parameter(torch.ones(neurons, len(act_fn)) / len(act_fn))
+                self.alpha = nn.Parameter(torch.ones(neurons, len(act_fn)) / len(act_fn), requires_grad=True)
             elif init == 'random':  # sample alpha in a uniform interval
-                self.alpha = nn.Parameter(torch.FloatTensor(neurons, len(act_fn)).uniform_(-0.5, 0.5))
+                self.alpha = nn.Parameter(torch.FloatTensor(neurons, len(act_fn)).uniform_(-0.5, 0.5),
+                                          requires_grad=True)
 
         elif combinator in ['MLP1', 'MLP1_neg', 'MLP2', 'MLP3', 'MLP4', 'MLP5']:  # create a list of MLP
             self.MLP_list = nn.ModuleList([MLP(combinator) for _ in range(neurons)])
@@ -43,6 +44,9 @@ class MIX(nn.Module):
 
         elif combinator in ['MLP_ATT', 'MLP_ATT_neg', 'MLP_ATT_b']:  # MLP_ATT has a different structure w.r.t MLP
             self.MLP_list = nn.ModuleList([MLP_ATT(combinator) for _ in range(neurons)])
+            if combinator == 'MLP_ATT_b':
+                self.beta = nn.Parameter(torch.FloatTensor(neurons).uniform_(-0.5, 0.5),
+                                         requires_grad=True)
 
     def forward(self, s):
         act_fn = self.act_fn
@@ -73,7 +77,11 @@ class MIX(nn.Module):
                                   dim=1)  # e.g. [256, 128, 4] (or [256, 128, 8] for neg)
                 if alpha_dropout is not None:  # apply dropout if requested
                     alpha = nn.Dropout(alpha_dropout)(alpha)
-                res = torch.sum(alpha * activations, axis=-1)
+                if combinator == 'MLP_ATT_b':
+                    beta = self.beta
+                    res = torch.sum(alpha * activations, axis=-1) + beta
+                else:
+                    res = torch.sum(alpha * activations, axis=-1)
                 # uncomment for hard routing
                 '''
                 if self.training is False
