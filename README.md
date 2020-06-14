@@ -47,9 +47,10 @@ with
 
 
 
-| Linear                      | MLP   | ATT   |
-| --------------------------- | ----- | ----- |
-| ![](https://ibb.co/Jsw8Cby) | ![]() | ![]() |
+| Linear  |  ![](https://i.ibb.co/wzF8Ybw/L-AIST.png)  |
+| ------- | :----------------------------------------: |
+| **MLP** | ![](https://i.ibb.co/DW2nSJt/MLP-AIST.png) |
+| **ATT** | ![](https://i.ibb.co/HFp8mMV/ATT-AIST.png) |
 
 
 
