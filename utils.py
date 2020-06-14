@@ -201,7 +201,6 @@ def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, nx=5, ny
     fig.set_size_inches(sizex, sizey)
     fig.tight_layout(pad=4)
     idx = 0
-    # bias_title = ["" for _ in range(neurons)] if bias is None else [b.detach().numpy() for b in bias]
     for i in range(nx):
         for j in range(ny):
             plt.setp(ax[i][j].get_xticklabels(), fontsize=tick_fontsize)
@@ -211,8 +210,8 @@ def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, nx=5, ny
             ax[i][j].set_ylim([-2, 2])
             ax[i][j].axhline(ls='--', color='lightgray')
             ax[i][j].axvline(ls='--', color='lightgray')
-            alpha_title = ", ".join(a[0].upper()+" "+str(np.round(float(alpha[idx][i]), 2)) for i, a in enumerate(act.split("_")))
-            b = f', b:{bias[idx]:.2f}' if bias is not None else ""
+            alpha_title = "+".join(str(np.round(float(alpha[idx][i]), 2))+a[0].upper() for i, a in enumerate(act.split("_")))
+            b = f'+{bias[idx]:.2f}' if bias is not None else ""
             ax[i][j].set_title(f'[{idx}] {alpha_title}{b}', fontsize=legend_fontsize)
             ax[i][j].plot(input_[idx].detach().numpy(), out[idx].detach().numpy(), color='green', lw=lw, alpha=0.8)
             ax[i][j].plot(input_[idx].detach().numpy(), fixed_out[idx].detach().numpy(), color='red', ls='--', lw=lw, alpha=0.8)
