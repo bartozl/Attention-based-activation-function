@@ -25,27 +25,33 @@ n_epochs = 20
 
 def plot_activations(path_dict):
     fixed_output = None  # store the first epoch activation i.o.t. compare it with acts of the others epochs
+    bias = None
     for act in path_dict:
         for path in path_dict[act]:
             with open(path + '/results.json', 'r') as f:
                 results = json.load(f)
             dest_path = f'{path}/plot/'  # where the imgs will be saved
-            if len(os.listdir(dest_path)) == 12:  # imgs for epochs in [1, 20, 40, ... 200] + 1 img with all neurons
+            if len(os.listdir(dest_path)) == 12:  # imgs for epochs in [1, 20, 40, ... 200] + 1 img with all neurons'act
                 continue
             print(path)
             for epoch in results['train_acc'].keys():
                 if int(epoch) % n_epochs != 0 and int(epoch) != 1:  # plot every 20 epochs (first epoch included)
                     continue
-                if results['combinator'] in MLP_LIST+ATT_LIST+MLP_neg+['Linear']:
+                if results['combinator'] in MLP_LIST + ['MLP1_neg']:
                     output = utils.compute_activations(results, epoch, path)
+                elif results['combinator'] == 'MLP_ATT_b':
+                    output, alpha, bias = utils.compute_activations(results, epoch, path, plot=True)
+                elif results['combinator'] in ATT_LIST+['Linear']:
+                    output, alpha = utils.compute_activations(results, epoch, path, plot=True)
                 else:
                     print(f"no plot method available for {results['combinator']} combinator...")
                     continue
                 if int(epoch) == 1:  # store the first epoch activation
                     fixed_output = output
-                utils.grid_activations(dest_path, output, fixed_output, epoch)
+                utils.grid_activations(dest_path, output, fixed_output, epoch, act, alpha, bias)
                 if int(epoch) == 200:
-                    utils.grid_activations(dest_path, output, fixed_output, epoch, nx=11, ny=11)
+                    utils.grid_activations(dest_path, output, fixed_output, epoch+'_tot', act, alpha, bias, nx=11, ny=11)
+                print(epoch)
 
 
 def plot_accuracy(path_dict, dest_path):

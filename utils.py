@@ -193,25 +193,35 @@ n_samples = 500
 input_ = torch.Tensor(np.linspace(-2, 2, n_samples).astype(np.float32)).repeat(neurons, 1).to(device)
 
 
-def grid_activations(dest_path, out, fixed_out, epoch, nx=5, ny=4, sizex=32, sizey=18):
-    tick_fontsize = 15
+def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, nx=5, ny=4, sizex=32, sizey=18):
+    tick_fontsize = int(100/nx)
+    legend_fontsize = int(120/nx)
+    lw = int(20/nx)
     fig, ax = plt.subplots(nx, ny)
     fig.set_size_inches(sizex, sizey)
-    fig.tight_layout()
+    fig.tight_layout(pad=4)
     idx = 0
+    bias = ["" for _ in range(len(bias))] if bias is None else [b.detach().numpy() for b in bias]
+    print(alpha.shape)
     for i in range(nx):
         for j in range(ny):
             plt.setp(ax[i][j].get_xticklabels(), fontsize=tick_fontsize)
             plt.setp(ax[i][j].get_yticklabels(), fontsize=tick_fontsize)
+            ax[i][j].set_xticks([-2, -1, 0, 1, 2])
+            ax[i][j].set_yticks([-2, -1, 0, 1, 2])
             ax[i][j].set_ylim([-2, 2])
             ax[i][j].axhline(ls='--', color='lightgray')
             ax[i][j].axvline(ls='--', color='lightgray')
-            ax[i][j].set_title(f'[n={idx}]')
-            ax[i][j].plot(input_[idx].detach().numpy(), out[idx].detach().numpy(), color='green')
-            ax[i][j].plot(input_[idx].detach().numpy(), fixed_out[idx].detach().numpy(), color='red', ls='--')
+            alpha_title = ", ".join(a[0].upper()+" "+str(np.round(float(alpha[idx][i]), 2)) for i, a in enumerate(act.split("_")))
+            bias_title = bias[idx]
+            ax[i][j].set_title(f'[{idx}] {alpha_title}, b:{bias_title:.2f}',
+                                            fontsize=legend_fontsize)
+            ax[i][j].plot(input_[idx].detach().numpy(), out[idx].detach().numpy(), color='green', lw=lw, alpha=0.8)
+            ax[i][j].plot(input_[idx].detach().numpy(), fixed_out[idx].detach().numpy(), color='red', ls='--', lw=lw, alpha=0.8)
             idx += 1
-    plt.savefig(f'{dest_path}/{epoch}_tot.png', bbox_inches='tight', dpi=200)
+    plt.savefig(f'{dest_path}/{name}.png', bbox_inches='tight', dpi=200)
     plt.close()
+
 
 def grid_accuracy(results, label, ax, i, first=False, color='green'):
     title_fontsize = 45
@@ -249,18 +259,36 @@ def grid_accuracy(results, label, ax, i, first=False, color='green'):
         if (j + 1) % 20 != 0:
             label_ax.set_visible(False)
 
-def compute_activations(results, epoch, path):
+
+def compute_activations(results, epoch, path, plot=False):
     state_dict = torch.load(f'{path}/weights/{epoch}.pth')  # load the model of the whole original network
     state_dict_filt = {k[2:]: v for k, v in state_dict.items()}  # adjust the name of the parameters
     del state_dict_filt['weight']  # delete the parameter of the original network linear layers in order to keep only\
     del state_dict_filt['bias']  # the MIX layer parameters
-    mix = MIX(results['act_fn'], results['combinator'], 128,
-              results['normalize'], results['init'], results['alpha_dropout'])
+    mix = MIX(results['act_fn'], results['combinator'], 128, results['normalize'], results['init'], plot=plot)
     mix.load_state_dict(state_dict_filt)  # load the MIX parameters
-    mix.eval()  # evaluation mode --> no dropout!
-    output = mix(input_.T)
-    print(results["combinator"], 'output.shape', output.shape)
-    return output.T
+    mix.eval()  # evaluation mode
+    # print(results["combinator"], 'output.shape', output.shape)
+    if not plot:
+        print(results['combinator'])
+        output = mix(input_.T)
+        return output.T
+    else:
+        if results['combinator'] == 'MLP_ATT_b':
+            output, alpha, bias = mix(input_.T)
+            alpha = alpha.permute(1, 0, 2)
+            alpha = torch.sum(alpha, dim=1) / alpha.shape[1]
+            return output.T, alpha, bias
+        elif results['combinator'] in ATT_LIST:
+            output, alpha = mix(input_.T)
+            alpha = alpha.permute(1, 0, 2)
+            alpha = torch.sum(alpha, dim=1) / alpha.shape[1]
+            return output.T, alpha
+        elif results['combinator'] == 'Linear':
+            output, alpha = mix(input_.T)
+            return output.T, alpha
+        else:
+            return mix(input_.T).T
 
 
 def create_path_dict(save_path):

@@ -5,10 +5,11 @@ from modules import MLP, MLP_ATT, Antirelu, Identity
 
 MLP_neg = ['MLP1_neg', 'MLP_ATT_neg']
 ATT_list = ['MLP_ATT', 'MLP_ATT_neg', 'MLP_ATT_b']
+MLP_list = ['MLP1', 'MLP1_neg', 'MLP2', 'MLP3', 'MLP4', 'MLP5']
 
 
 class MIX(nn.Module):
-    def __init__(self, act_fn, combinator, neurons, normalize=None, init='random', alpha_dropout=None):
+    def __init__(self, act_fn, combinator, neurons, normalize=None, init='random', alpha_dropout=None, plot=False):
         super(MIX, self).__init__()
         self.combinator = combinator  # name of the combinator, e.g. "Linear"
         self.act_fn = act_fn  # basic activation function to be used, e.g. "Tanh, Sigmoid"
@@ -22,7 +23,7 @@ class MIX(nn.Module):
                            'antirelu': Antirelu(),
                            'identity': Identity(),
                            'softmax': nn.Softmax()}
-
+        self.plot = plot
         if combinator == 'Linear':  # 3 different alpha initialization for the Linear combinator
             assert init in ['normal', 'uniform', 'random'], "init must be 'normal','uniform','random'"
             if init == 'normal':  # sample taken from a gaussian N(0,1)
@@ -33,7 +34,7 @@ class MIX(nn.Module):
                 self.alpha = nn.Parameter(torch.FloatTensor(neurons, len(act_fn)).uniform_(-0.5, 0.5),
                                           requires_grad=True)
 
-        elif combinator in ['MLP1', 'MLP1_neg', 'MLP2', 'MLP3', 'MLP4', 'MLP5']:  # create a list of MLP
+        elif combinator in MLP_list:  # create a list of MLP
             self.MLP_list = nn.ModuleList([MLP(combinator) for _ in range(neurons)])
 
         elif combinator == 'MLPr':  # MLPr is a mix of MLP1, MLP2
@@ -59,8 +60,12 @@ class MIX(nn.Module):
             if combinator not in MLP_neg:  # compute basic activations results, e.g. [tanh(s), sigmoid(s)] w/ s = input
                 activations = torch.cat([act_module[act](s).unsqueeze(-1) for act in act_fn], dim=-1)
             else:  # for MLP_neg also the negative basic activations are added in the list
-                activations = torch.cat([[act_module[act](s).unsqueeze(-1), -1 * act_module[act](s).unsqueeze(-1)]
-                                         for act in act_fn], dim=-1)
+                temp_act = []
+                for act in act_fn:
+                    temp_act.append(act_module[act](s).unsqueeze(-1))
+                    temp_act.append(-1 * act_module[act](s).unsqueeze(-1))
+                activations = torch.cat(temp_act, dim=-1)
+                print(activations.shape)
 
             if combinator == 'Linear':
                 # the result is the linear combination of the basic activations, weighted by alpha (learned by the nn)
@@ -95,5 +100,9 @@ class MIX(nn.Module):
 
         else:  # compute only a basic activation function (no MIX)
             res = act_module[act_fn[0]]
-
-        return res
+        if (not self.plot) or (combinator in MLP_list):
+            return res
+        elif combinator == 'MLP_ATT_b':
+            return res, alpha, beta
+        else:
+            return res, alpha
