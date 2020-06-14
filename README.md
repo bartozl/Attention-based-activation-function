@@ -65,4 +65,4 @@ python feedforward.py
 python plot.py -args
 ```
 
-where **args** can be: "activations", _accuracy_, _table_, _table_max_
+where **args** can be: activations, _accuracy_, _table_, _table_max_
