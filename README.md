@@ -41,6 +41,18 @@ with
 
 
 
+
+
+### Examples of mixed activation functions.
+
+
+
+| Linear                      | MLP   | ATT   |
+| --------------------------- | ----- | ----- |
+| ![](https://ibb.co/Jsw8Cby) | ![]() | ![]() |
+
+
+
 **Train and test from scratch:**
 
 ```
