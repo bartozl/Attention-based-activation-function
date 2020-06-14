@@ -49,7 +49,7 @@ with
 
 | Linear                      | MLP   | ATT   |
 | --------------------------- | ----- | ----- |
-| ![](https://ibb.co/Jsw8Cby) | ![]() | ![]() |
+| ![alt text](https://ibb.co/Jsw8Cby) | ![]() | ![]() |
 
 
 
