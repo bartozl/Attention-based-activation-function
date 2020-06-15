@@ -25,7 +25,7 @@ The activation function is defined as follows:
 The activation function is now computed by a Multi Layer Perceptron that takes as input the output of the basic activations (fit with the input).  In pseudo-formula:
 
 
-![](https://latex.codecogs.com/svg.latex?g_n%28s_j%29%20%3D%20MLP_j%28f_1%28s_j%29%2C%20...%20%2C%20f_i%28s_j%29%29)
+![](https://latex.codecogs.com/svg.latex?g_n%28s%29%20%3D%20MLP_n%28f_1%28s%29%2C%20...%20%2C%20f_i%28s%29%29)
 
 
 ## 3. Attention-based combinator
