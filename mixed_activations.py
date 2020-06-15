@@ -82,6 +82,7 @@ class MIX(nn.Module):
                                   dim=1)  # e.g. [256, 128, 4] (or [256, 128, 8] for neg)
                 if alpha_dropout is not None:  # apply dropout if requested
                     alpha = nn.Dropout(alpha_dropout)(alpha)
+                self.register_buffer('alpha', alpha)
                 if combinator == 'MLP_ATT_b':
                     beta = self.beta
                     res = torch.sum(alpha * activations, axis=-1) + beta
