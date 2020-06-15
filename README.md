@@ -33,11 +33,11 @@ The activation function is now computed by a Multi Layer Perceptron that takes a
 Here, as in the first case, the activation function is the linear combination of the basic activation functions. However, the ![](https://latex.codecogs.com/svg.latex?%5Calpha_%7Bi%7D) parameters (*i.e.* the weights of the combination)  are obtained as the output of a MLP. In pseudo-formula:
 
 
-![](https://latex.codecogs.com/svg.latex?g_j%28s_j%29%20%3D%20%5Csum_i%20%5Calpha_%7Bi%7D%20*%20f_i%28s_j%29)
+![](https://latex.codecogs.com/svg.latex?g_n%28s%29%20%3D%20%5Csum_i%20%5Calpha_%7Bi%7D%20*%20f_i%28s%29)
 
 with
 
-![](https://latex.codecogs.com/svg.latex?%5Calpha_i%20%5Cin%20softmax%28MLP_j%28f_1%28s_j%29%2C%20...%20%2C%20f_i%28s_j%29%29%29)
+![](https://latex.codecogs.com/svg.latex?%5Calpha_i%20%5Cin%20softmax%28MLP_n%28f_1%28s%29%2C%20...%20%2C%20f_i%28s%29%29%29)
 
 
 
@@ -66,4 +66,4 @@ python feedforward.py
 python plot.py -args
 ```
 
-where **args** can be: "activations", _accuracy_, _table_, _table_max_
+where **args** can be: _activations_, _accuracy_, _table_, _table_max_
