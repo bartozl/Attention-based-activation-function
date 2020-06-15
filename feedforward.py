@@ -31,6 +31,9 @@ def train(config):
                     reg_loss += l1_loss
                 loss += config['lambda_l1'] * reg_loss
             '''
+            # TODO implement l1 regularization on alpha parameters.
+            # for i, name in enumerate(config['network'].buffers()):
+            #    print(i, name)
             loss.backward()
             config['optimizer'].step()
             predicted = torch.argmax(y_pred.data, 1)
