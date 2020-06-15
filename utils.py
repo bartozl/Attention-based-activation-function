@@ -210,8 +210,11 @@ def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, nx=5, ny
             ax[i][j].set_ylim([-2, 2])
             ax[i][j].axhline(ls='--', color='lightgray')
             ax[i][j].axvline(ls='--', color='lightgray')
-            alpha_title = "+".join(str(np.round(float(alpha[idx][i]), 2))+a[0].upper() for i, a in enumerate(act.split("_")))
-            b = f'+{bias[idx]:.2f}' if bias is not None else ""
+            if alpha is None:
+                alpha_title = ""
+            else:
+                alpha_title = "".join(["", "+"][float(alpha[idx][i]) > 0] + str(np.round(float(alpha[idx][i]), 2))+a[0].upper() for i, a in enumerate(act.split("_")))
+            b = f'{["","+"][bias[idx]>0]}{bias[idx]:.2f}' if bias is not None else ""
             ax[i][j].set_title(f'[{idx}] {alpha_title}{b}', fontsize=legend_fontsize)
             ax[i][j].plot(input_[idx].detach().numpy(), out[idx].detach().numpy(), color='green', lw=lw, alpha=0.8)
             ax[i][j].plot(input_[idx].detach().numpy(), fixed_out[idx].detach().numpy(), color='red', ls='--', lw=lw, alpha=0.8)
@@ -267,7 +270,6 @@ def compute_activations(results, epoch, path, plot=False):
     mix.eval()  # evaluation mode
     # print(results["combinator"], 'output.shape', output.shape)
     if not plot:
-        print(results['combinator'])
         output = mix(input_.T)
         return output.T
     else:
