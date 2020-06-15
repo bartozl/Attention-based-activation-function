@@ -43,7 +43,7 @@ with
 
 
 
-### Examples of mixed activation functions.
+### Examples of mixed activation functions with _antirelu_, _identity_, _sigmoid_, _tanh_ as base functions.
 
 
 
