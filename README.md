@@ -8,14 +8,14 @@ The aim of this project is to study a new activation function, based on the comb
 
 The activation function is defined as follows:
 
-![](https://latex.codecogs.com/svg.latex?g_n%28s_j%29%20%3D%20%5Csum_i%20%5Calpha_%7Bi%7D%20*%20f_i%28s_j%29)
+![](https://latex.codecogs.com/svg.latex?g_n%28s%29%20%3D%20%5Csum_i%20%5Calpha_%7Bi%7D%20*%20f_i%28s%29)
 
 
 - ![](https://latex.codecogs.com/svg.latex?%5Calpha_%7Bi%7D) parameters to be learned
 - ![](https://latex.codecogs.com/svg.latex?f_i) base activation function (e.g. _relu_, _sigmoid_, etc.)
 - ![](https://latex.codecogs.com/svg.latex?s)  input
-- ![](https://latex.codecogs.com/svg.latex?i) number of neurons of the layer
-- ![](https://latex.codecogs.com/svg.latex?j) number of base activation functions
+- ![](https://latex.codecogs.com/svg.latex?n) number of neurons of the layer
+- ![](https://latex.codecogs.com/svg.latex?i) number of base activation functions
 
 
 
