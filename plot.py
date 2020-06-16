@@ -25,15 +25,16 @@ n_epochs = 20
 
 def plot_activations(path_dict, plot_it):
     fixed_output = None  # store the first epoch activation i.o.t. compare it with acts of the others epochs
-    bias = None
+    alpha, bias = None, None
     for act in path_dict:
         for i, path in enumerate(path_dict[act]):
             with open(path + '/results.json', 'r') as f:
                 results = json.load(f)
             dest_path = f'{path}/plot/'  # where the imgs will be saved
-            # if len(os.listdir(dest_path)) == 12:  # imgs for epochs in [1, 20, 40, ... 200] + 1 img with all neurons'act
-            #    continue
+            print(results['combinator'], act)
             if results['combinator'] not in plot_it:
+                continue
+            if len(os.listdir(dest_path)) == 12:  # imgs for epochs in [1, 20, 40, ... 200] + 1 img with all neurons'act
                 continue
             print(path)
             for epoch in results['train_acc'].keys():
@@ -41,12 +42,10 @@ def plot_activations(path_dict, plot_it):
                     continue
                 if results['combinator'] in MLP_LIST + ['MLP1_neg']:
                     output = utils.compute_activations(results, epoch, path)
-                    alpha, bias = None, None
                 elif results['combinator'] == 'MLP_ATT_b':
                     output, alpha, bias = utils.compute_activations(results, epoch, path, plot=True)
                 elif results['combinator'] in ATT_LIST+['Linear']:
                     output, alpha = utils.compute_activations(results, epoch, path, plot=True)
-                    bias = None
                 else:
                     print(f"no plot method available for {results['combinator']} combinator...")
                     continue
@@ -206,6 +205,6 @@ if __name__ == '__main__':
 
     if args.activations:
         print('plotting activations...')
-        plot_activations(path_dict, ['MLP1', 'MLP2', 'Linear', 'MLP_ATT', 'MLP_ATT_neg'])
+        plot_activations(path_dict, ['MLP_ATT_b'])
 
 # ['MLP1', 'MLP2', 'Linear', 'MLP_ATT', 'MLP_ATT_neg'] <-- already plotted
