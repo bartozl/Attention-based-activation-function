@@ -49,8 +49,8 @@ with
 
 | Linear  |  ![](https://i.ibb.co/wzF8Ybw/L-AIST.png)  |
 | ------- | :----------------------------------------: |
-| **MLP** | ![](https://i.ibb.co/DW2nSJt/MLP-AIST.png) |
-| **ATT** | ![](https://i.ibb.co/HFp8mMV/ATT-AIST.png) |
+| **MLP** | ![](https://i.ibb.co/8Ks4QJC/MLP-AIST.png) |
+| **ATT** | ![](https://i.ibb.co/TbNFH19/ATT-AIST.png) |
 
 
 
