@@ -31,9 +31,11 @@ def train(config):
                     reg_loss += l1_loss
                 loss += config['lambda_l1'] * reg_loss
             '''
-            # TODO implement l1 regularization on alpha parameters.
-            # for i, name in enumerate(config['network'].buffers()):
-            #    print(i, name)
+            if config['lambda_l1'] != 0:
+                for name, buf in config['network'].named_buffers():
+                    if name == '1.alpha':
+                        l1_loss = F.l1_loss(buf, target=torch.zeros_like(buf), reduction='sum')
+                        loss += l1_loss * config['lambda_l1']
             loss.backward()
             config['optimizer'].step()
             predicted = torch.argmax(y_pred.data, 1)
@@ -54,7 +56,8 @@ def test(config):
     model_list = sorted(list(map(lambda m: int(m.split('.')[0]), os.listdir(load_dir))))
     for epoch in model_list:
         model = load_dir + str(epoch) + '.pth'
-        config['network'].load_state_dict(torch.load(model))
+        state_dict = torch.load(model)
+        config['network'].load_state_dict(state_dict)
         Y_batch, Predicted = [], []
         with torch.no_grad():
             config['network'].eval()
