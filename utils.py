@@ -5,8 +5,6 @@ import shutil
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
-from mixed_activations import MIX
-# from Kwinners import Kwinners
 import torch
 from matplotlib import pyplot as plt
 from collections import defaultdict
@@ -15,6 +13,9 @@ import seaborn as sns
 import imgkit
 import pandas as pd
 import numpy as np
+import random
+from mixed_activations import MIX
+from modules import Network
 
 MLP_LIST = ['MLP1', 'MLP1_neg', 'MLP2', 'MLP3', 'MLP4', 'MLP5', 'MLPr']
 ATT_LIST = ['MLP_ATT', 'MLP_ATT_neg', 'MLP_ATT_b']
@@ -46,8 +47,8 @@ def create_save_dir(run_config, init, normalize, act_list, lambda_l1, drop, test
     if Path(f'{save_dir}results.json').exists():
         if test_only:
             return save_dir
-        else:
-            return False
+    #    else:
+    #        return False
     Path(f'{save_dir}weights/').mkdir(parents=True, exist_ok=True)
     Path(f'{save_dir}plot/').mkdir(parents=True, exist_ok=True)
     shutil.copy2('run_config.json', save_dir)
@@ -83,6 +84,10 @@ def load_run_config(run_config):
         run_config['run_name'] += f"{run_config['k']}"
     return run_config
 
+def reset_seed(seed):
+    np.random.seed(seed)  # allows reproducibility
+    torch.manual_seed(seed)  # allows reproducibility
+    random.seed(seed)
 
 def generate_configs(run_config, test_only, colab):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -96,21 +101,13 @@ def generate_configs(run_config, test_only, colab):
             for lamb_ in run_config['lambda_l1']:
                 for init_ in run_config['init']:
                     for drop_ in run_config['alpha_dropout']:
+                        reset_seed(run_config['random_seed'])
                         save_dir = create_save_dir(run_config, init_, norm_, act_, lamb_, drop_, test_only)
                         if (save_dir is False) or (save_dir in savedirs):
                             continue
                         savedirs.append(save_dir)
                         # if run_config['dataset'] == 'MNIST':
-                        network = torch.nn.Sequential(
-                            torch.nn.Linear(784, 128),
-                            MIX(act_, run_config['combinator'],
-                                neurons=128, normalize=norm_,
-                                init=init_, alpha_dropout=drop_).to(device),
-                            # Kwinners(neurons=128, k=run_config['k']),
-                            # torch.nn.ReLU(),
-                            torch.nn.Linear(128, 10),
-                            torch.nn.LogSoftmax(dim=1)).to(device)
-
+                        network = Network(act_, run_config['combinator'], norm_, init_, drop_).to(device)
                         config = {'save_dir': save_dir,
                                   'data_test': data_test,
                                   'data_train': data_train,
@@ -138,21 +135,28 @@ def generate_configs(run_config, test_only, colab):
     return configs
 
 
-def save_state(config, epoch, acc, train_=True):
-    len_dataset = config['len_test']
+def save_state(config, dest_path, acc, train_=True):
     if train_:
         len_dataset = config['len_train']
-        torch.save(config['network'].state_dict(), f'{config["save_dir"]}/weights/{epoch}.pth')
+        state_dict = config['network'].state_dict()
+        torch.save(state_dict, dest_path)
+    else:
+        len_dataset = config['len_test']
     new_acc = 100 * acc / len_dataset
     return new_acc
 
 
-def save_results(config, train_acc_per_epoch, test_acc_per_epoch, test_only=False, save_test=False):
-    if save_test:
-        print('...Saving results_hr...')
+def save_results(config, train_acc, test_acc, epoch, loss=None, test_only=False, save_test=False):
+    first_save = False
+    try:
         with open(config['save_dir'] + 'results.json', 'r') as f:
             results = json.load(f)
-        results['test_acc'] = test_acc_per_epoch
+    except Exception as e:
+        first_save = True
+
+    if save_test:
+        print('...Saving results_hr...')
+        results['test_acc'] = test_acc
         results['hr'] = True
         with open(config['save_dir'] + 'results_hr.json', 'w') as f:
             json.dump(results, f, indent=4)
@@ -160,23 +164,30 @@ def save_results(config, train_acc_per_epoch, test_acc_per_epoch, test_only=Fals
     if test_only:
         return
     else:
-        results = {'act_fn': config['act_fn'],
-                   'epochs': config['epochs'],
-                   'act_per_neuron': config['neurons'] if config['neurons'] != 0 else None,
-                   'train_acc': train_acc_per_epoch,
-                   'test_acc': test_acc_per_epoch,
-                   'lambda_l1': config['lambda_l1'],
-                   'normalize': config['normalize'],
-                   'combinator': config['combinator'],
-                   'run_name': config['run_name'],
-                   'dataset': config['dataset'],
-                   'random_seed': config['random_seed'],
-                   'batch_size': config['batch_size'],
-                   'init': config['init'],
-                   'k': config['k'],
-                   'alpha_dropout': config['alpha_dropout']
-                   }
-
+        if first_save:
+            results = {'act_fn': config['act_fn'],
+                       'epochs': config['epochs'],
+                       'act_per_neuron': config['neurons'] if config['neurons'] != 0 else None,
+                       'train_acc': {1: train_acc},
+                       'test_acc': {1: None},
+                       'loss': {1: loss},
+                       'lambda_l1': config['lambda_l1'],
+                       'normalize': config['normalize'],
+                       'combinator': config['combinator'],
+                       'run_name': config['run_name'],
+                       'dataset': config['dataset'],
+                       'random_seed': config['random_seed'],
+                       'batch_size': config['batch_size'],
+                       'init': config['init'],
+                       'k': config['k'],
+                       'alpha_dropout': config['alpha_dropout']
+                       }
+        else:
+            if train_acc is None:
+                results['test_acc'][epoch] = test_acc
+            if test_acc is None:
+                results['train_acc'][epoch] = train_acc
+                results['loss'][epoch] = loss
         print('...Saving results...')
         with open(config['save_dir'] + 'results.json', 'w') as f:
             json.dump(results, f, indent=4)
@@ -201,6 +212,8 @@ def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, nx=5, ny
     fig.set_size_inches(sizex, sizey)
     fig.tight_layout(pad=4)
     idx = 0
+    mean_max = torch.mean(torch.max(alpha, dim=-1)[0]).item()
+    print(f'{dest_path}/{name}  - {mean_max}')
     for i in range(nx):
         for j in range(ny):
             plt.setp(ax[i][j].get_xticklabels(), fontsize=tick_fontsize)
@@ -262,12 +275,13 @@ def grid_accuracy(results, label, ax, i, first=False, color='green'):
 
 def compute_activations(results, epoch, path, plot=False):
     state_dict = torch.load(f'{path}/weights/{epoch}.pth')  # load the model of the whole original network
-    state_dict_filt = {k[2:]: v for k, v in state_dict.items()}  # adjust the name of the parameters
+    state_dict_filt = {'.'.join(k.split('.')[1:]): v for k, v in state_dict.items()}  # adjust the name of the parameters
+    # print(state_dict)
     del state_dict_filt['weight']  # delete the parameter of the original network linear layers in order to keep only\
     del state_dict_filt['bias']  # the MIX layer parameters
     mix = MIX(results['act_fn'], results['combinator'], 128, results['normalize'], results['init'], plot=plot)
-    mix.load_state_dict(state_dict_filt)  # load the MIX parameters
     mix.eval()  # evaluation mode
+    mix.load_state_dict(state_dict_filt)  # load the MIX parameters
     # print(results["combinator"], 'output.shape', output.shape)
     if not plot:
         output = mix(input_.T)
@@ -276,7 +290,7 @@ def compute_activations(results, epoch, path, plot=False):
         if results['combinator'] == 'MLP_ATT_b':
             output, alpha, bias = mix(input_.T)
             alpha = alpha.permute(1, 0, 2)
-            alpha = torch.sum(alpha, dim=1) / alpha.shape[1]
+            alpha = torch.sum(torch.nn.functional.softmax(alpha,dim=-1), dim=1) / alpha.shape[1]
             return output.T, alpha, bias
         elif results['combinator'] in ATT_LIST:
             output, alpha = mix(input_.T)
