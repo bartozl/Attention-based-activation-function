@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from modules import MLP, MLP_ATT, Antirelu, Identity
+from modules import MLP, Antirelu, Identity
 
 
 MLP_neg = ['MLP1_neg', 'MLP_ATT_neg']
@@ -34,8 +34,11 @@ class MIX(nn.Module):
                 self.alpha = nn.Parameter(torch.FloatTensor(neurons, len(act_fn)).uniform_(-0.5, 0.5),
                                           requires_grad=True)
 
-        elif combinator in MLP_list:  # create a list of MLP
+        elif combinator in MLP_list + ATT_list:  # create a list of MLP
             self.MLP_list = nn.ModuleList([MLP(combinator) for _ in range(neurons)])
+            if combinator == 'MLP_ATT_b':
+                self.beta = nn.Parameter(torch.FloatTensor(neurons).uniform_(-0.5, 0.5),
+                                         requires_grad=True)
 
         elif combinator == 'MLPr':  # MLPr is a mix of MLP1, MLP2
             self.MLP_list = nn.ModuleList([])
@@ -43,11 +46,6 @@ class MIX(nn.Module):
                 self.MLP_list.extend([MLP('MLP1')])
                 self.MLP_list.extend([MLP('MLP2')])
 
-        elif combinator in ['MLP_ATT', 'MLP_ATT_neg', 'MLP_ATT_b']:  # MLP_ATT has a different structure w.r.t MLP
-            self.MLP_list = nn.ModuleList([MLP_ATT(combinator) for _ in range(neurons)])
-            if combinator == 'MLP_ATT_b':
-                self.beta = nn.Parameter(torch.FloatTensor(neurons).uniform_(-0.5, 0.5),
-                                         requires_grad=True)
 
     def forward(self, s):
         act_fn = self.act_fn
@@ -55,6 +53,7 @@ class MIX(nn.Module):
         alpha_dropout = self.alpha_dropout
         normalize = self.normalize
         act_module = self.act_module
+        res, alpha, beta = None, None, None
 
         if combinator != 'None':
             if combinator not in MLP_neg:  # compute basic activations results, e.g. [tanh(s), sigmoid(s)] w/ s = input
@@ -77,21 +76,29 @@ class MIX(nn.Module):
             elif combinator in ATT_list:
                 # the result is the linear combination of the basic activations, weighted by alpha (learned by an MLP)
                 # each neuron is associated with a MLP with (input, output) = (n, n) where n = num. of basic act_fn
+
                 alpha = torch.cat([self.act_module['softmax'](mod(activations[:, i, :])).unsqueeze(1)
                                   for i, mod in enumerate(self.MLP_list)],
                                   dim=1)  # e.g. [256, 128, 4] (or [256, 128, 8] for neg)
-                if alpha_dropout is not None:  # apply dropout if requested
+
+                '''
+                alpha = torch.cat([mod(activations[:, i, :]).unsqueeze(1)
+                                   for i, mod in enumerate(self.MLP_list)],
+                                  dim=1)
+                '''
+                params = [x.view(-1) for x in mod.parameters() for mod in self.MLP_list]
+
+                if alpha_dropout is not None:  # apply dropout if required
                     alpha = nn.Dropout(alpha_dropout)(alpha)
-                if self.training:
-                    self.register_buffer('alpha', alpha)
                 if combinator == 'MLP_ATT_b':
                     beta = self.beta
                     res = torch.sum(alpha * activations, axis=-1) + beta
+                    # return res, alpha, beta
                 else:
                     res = torch.sum(alpha * activations, axis=-1)
                 # uncomment for hard routing
                 '''
-                if self.training is False
+                if not self.training:
                     alpha_max, idx = torch.max(alpha, dim=2)
                     mask = torch.arange(alpha.size(-1)).reshape(1, 1, -1) == idx.unsqueeze(-1)
                     res = activations[mask].reshape(alpha_max.shape)
@@ -102,9 +109,5 @@ class MIX(nn.Module):
 
         else:  # compute only a basic activation function (no MIX)
             res = act_module[act_fn[0]]
-        if (not self.plot) or (combinator in MLP_list):
-            return res
-        elif combinator == 'MLP_ATT_b':
-            return res, alpha, beta
-        else:
-            return res, alpha
+
+        return res, alpha, beta

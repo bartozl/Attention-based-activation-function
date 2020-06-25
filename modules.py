@@ -1,5 +1,21 @@
 import torch
 import torch.nn as nn
+import mixed_activations
+
+
+class Network(nn.Module):
+    def __init__(self, act, combinator, norm, init, drop):
+        super(Network, self).__init__()
+        self.l1 = nn.Linear(784, 128)
+        self.mix = mixed_activations.MIX(act, combinator, neurons=128, normalize=norm, init=init, alpha_dropout=drop)
+        self.l2 = nn.Linear(128, 10)
+        self.out = nn.LogSoftmax(dim=1)
+
+    def forward(self, s):
+        l1_out = self.l1(s)
+        mix_out, alpha, beta = self.mix(l1_out)
+        l2_out = self.out(self.l2(mix_out))
+        return l2_out, alpha, beta
 
 
 class Antirelu(nn.Module):
@@ -61,15 +77,6 @@ class MLP(nn.Module):
                                            nn.ReLU(),
                                            nn.Linear(2, 1),
                                            )
-
-    def forward(self, x):
-        x = self.mlp(x)
-        return x
-
-
-class MLP_ATT(nn.Module):
-    def __init__(self, combinator):
-        super(MLP_ATT, self).__init__()
 
         if combinator in ['MLP_ATT', 'MLP_ATT_b']:  # 105738 parameters
             self.mlp = torch.nn.Sequential(nn.Linear(4, 3),
