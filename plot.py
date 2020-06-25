@@ -20,7 +20,8 @@ act_module = {'relu': nn.ReLU(),  # dictionary containing useful functions
               'antirelu': Antirelu(),
               'identity': Identity(),
               'softmax': nn.Softmax()}
-n_epochs = 20
+# TODO set n_epochs = 20
+n_epochs = 10
 
 
 def plot_activations(path_dict, plot_it):
@@ -54,8 +55,6 @@ def plot_activations(path_dict, plot_it):
                 utils.grid_activations(dest_path, output, fixed_output, epoch, act, alpha, bias)
                 if int(epoch) == 200:
                     utils.grid_activations(dest_path, output, fixed_output, epoch+'_tot', act, alpha, bias, nx=11, ny=11)
-                print(epoch)
-
 
 def plot_accuracy(path_dict, dest_path):
     path_dict_ = path_dict.copy()
@@ -180,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('--run_name', type=str)
     args = parser.parse_args()
     # utils.fix_json()
-
+    np.random.seed(1)  # allows reproducibility
     source_path = '../experiments/MNIST/'
     imgs_path = '../experiments/MNIST/imgs/'
 
