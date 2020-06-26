@@ -27,11 +27,11 @@ def train(config):
             config['optimizer'].zero_grad()
             X_batch = X_batch.to(config['device']).view(X_batch.shape[0], -1)
             y_batch = y_batch.to(config['device'])
-            y_pred, alpha, _ = config['network'](X_batch)
+            y_pred, _, _, params = config['network'](X_batch)
             # print(mix_out.shape)
             loss = F.nll_loss(y_pred, y_batch)
             if config['lambda_l1'] != 0:
-                reg_loss = F.l1_loss(alpha, target=torch.zeros_like(alpha), reduction='sum')
+                reg_loss = F.l1_loss(params, target=torch.zeros_like(params), reduction='sum')
                 loss += reg_loss * config['lambda_l1']
             loss.backward()
             config['optimizer'].step()
@@ -68,7 +68,7 @@ def test(config):
             for idx, (X_batch, y_batch) in enumerate(config['data_test']):
                 X_batch = X_batch.to(config['device']).view(X_batch.shape[0], -1)
                 y_batch = y_batch.to(config['device'])
-                y_pred, _, _ = config['network'](X_batch)
+                y_pred, _, _, _ = config['network'](X_batch)
                 predicted = torch.argmax(y_pred.data, 1)
                 acc += (predicted == y_batch).sum().item()
                 Y_batch += y_batch

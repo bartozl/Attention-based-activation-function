@@ -53,7 +53,7 @@ class MIX(nn.Module):
         alpha_dropout = self.alpha_dropout
         normalize = self.normalize
         act_module = self.act_module
-        res, alpha, beta = None, None, None
+        res, params, beta = None, None, None
 
         if combinator != 'None':
             if combinator not in MLP_neg:  # compute basic activations results, e.g. [tanh(s), sigmoid(s)] w/ s = input
@@ -81,13 +81,14 @@ class MIX(nn.Module):
                                   for i, mod in enumerate(self.MLP_list)],
                                   dim=1)  # e.g. [256, 128, 4] (or [256, 128, 8] for neg)
 
+                params = alpha
                 '''
-                alpha = torch.cat([mod(activations[:, i, :]).unsqueeze(1)
+                params = torch.cat([mod(activations[:, i, :]).unsqueeze(1)
                                    for i, mod in enumerate(self.MLP_list)],
-                                  dim=1)
+                                   dim=1)
+                alpha = torch.nn.functional.softmax(params, dim=-1)
                 '''
-                params = [x.view(-1) for x in mod.parameters() for mod in self.MLP_list]
-
+                # params = torch.cat([x.view(-1) for mod in self.MLP_list for x in mod.parameters()], dim=-1)
                 if alpha_dropout is not None:  # apply dropout if required
                     alpha = nn.Dropout(alpha_dropout)(alpha)
                 if combinator == 'MLP_ATT_b':
@@ -110,4 +111,4 @@ class MIX(nn.Module):
         else:  # compute only a basic activation function (no MIX)
             res = act_module[act_fn[0]]
 
-        return res, alpha, beta
+        return res, alpha, beta, params
