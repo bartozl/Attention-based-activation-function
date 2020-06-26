@@ -13,9 +13,9 @@ class Network(nn.Module):
 
     def forward(self, s):
         l1_out = self.l1(s)
-        mix_out, alpha, beta = self.mix(l1_out)
+        mix_out, alpha, beta, params = self.mix(l1_out)
         l2_out = self.out(self.l2(mix_out))
-        return l2_out, alpha, beta
+        return l2_out, alpha, beta, params
 
 
 class Antirelu(nn.Module):
@@ -84,6 +84,7 @@ class MLP(nn.Module):
                                            nn.Dropout(0.2),
                                            nn.Linear(3, 4),
                                            )
+            #4*3+3 + 3*4 = 12+3+12
         if combinator in ['MLP_ATT_neg']:  # 105738 parameters
             self.mlp = torch.nn.Sequential(nn.Linear(8, 5),
                                            nn.ReLU(),
