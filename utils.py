@@ -89,7 +89,8 @@ def reset_seed(seed):
     torch.manual_seed(seed)  # allows reproducibility
     random.seed(seed)
 
-def generate_configs(run_config, test_only, colab):
+
+def generate_configs(run_config, hr_test, colab):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     savedirs, configs = [], []
     data_train, data_test, len_train, len_test = load_dataset(run_config['dataset'],
@@ -102,12 +103,12 @@ def generate_configs(run_config, test_only, colab):
                 for init_ in run_config['init']:
                     for drop_ in run_config['alpha_dropout']:
                         reset_seed(run_config['random_seed'])
-                        save_dir = create_save_dir(run_config, init_, norm_, act_, lamb_, drop_, test_only)
+                        save_dir = create_save_dir(run_config, init_, norm_, act_, lamb_, drop_, hr_test)
                         if (save_dir is False) or (save_dir in savedirs):
                             continue
                         savedirs.append(save_dir)
                         # if run_config['dataset'] == 'MNIST':
-                        network = Network(act_, run_config['combinator'], norm_, init_, drop_).to(device)
+                        network = Network(act_, run_config['combinator'], norm_, init_, drop_, hr_test).to(device)
                         config = {'save_dir': save_dir,
                                   'data_test': data_test,
                                   'data_train': data_train,
@@ -146,51 +147,49 @@ def save_state(config, dest_path, acc, train_=True):
     return new_acc
 
 
-def save_results(config, train_acc, test_acc, epoch, loss=None, test_only=False, save_test=False):
+def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=False):
+
     first_save = False
     try:
-        with open(config['save_dir'] + 'results.json', 'r') as f:
+        with open(f'{config["save_dir"]}results.json', 'r') as f:
             results = json.load(f)
     except Exception as e:
         first_save = True
 
-    if save_test:
-        print('...Saving results_hr...')
-        results['test_acc'] = test_acc
-        results['hr'] = True
-        with open(config['save_dir'] + 'results_hr.json', 'w') as f:
-            json.dump(results, f, indent=4)
-        return results
-    if test_only:
-        return
+    if first_save:
+        results = {'act_fn': config['act_fn'],
+                   'epochs': config['epochs'],
+                   'act_per_neuron': config['neurons'] if config['neurons'] != 0 else None,
+                   'train_acc': {1: train_acc},
+                   'test_acc': {1: None},
+                   'loss': {1: loss},
+                   'lambda_l1': config['lambda_l1'],
+                   'normalize': config['normalize'],
+                   'combinator': config['combinator'],
+                   'run_name': config['run_name'],
+                   'dataset': config['dataset'],
+                   'random_seed': config['random_seed'],
+                   'batch_size': config['batch_size'],
+                   'init': config['init'],
+                   'k': config['k'],
+                   'alpha_dropout': config['alpha_dropout']
+                   }
     else:
-        if first_save:
-            results = {'act_fn': config['act_fn'],
-                       'epochs': config['epochs'],
-                       'act_per_neuron': config['neurons'] if config['neurons'] != 0 else None,
-                       'train_acc': {1: train_acc},
-                       'test_acc': {1: None},
-                       'loss': {1: loss},
-                       'lambda_l1': config['lambda_l1'],
-                       'normalize': config['normalize'],
-                       'combinator': config['combinator'],
-                       'run_name': config['run_name'],
-                       'dataset': config['dataset'],
-                       'random_seed': config['random_seed'],
-                       'batch_size': config['batch_size'],
-                       'init': config['init'],
-                       'k': config['k'],
-                       'alpha_dropout': config['alpha_dropout']
-                       }
-        else:
+        if not hr_test:
             if train_acc is None:
                 results['test_acc'][epoch] = test_acc
             if test_acc is None:
                 results['train_acc'][epoch] = train_acc
                 results['loss'][epoch] = loss
-        print('...Saving results...')
-        with open(config['save_dir'] + 'results.json', 'w') as f:
-            json.dump(results, f, indent=4)
+        else:
+            if 'test_acc_hr' not in results:
+                results['test_acc_hr'] = {1: test_acc}
+            else:
+                results['test_acc_hr'][epoch] = test_acc
+
+    print('...Saving results...')
+    with open(config['save_dir'] + 'results.json', 'w') as f:
+        json.dump(results, f, indent=4)
     return results
 
 

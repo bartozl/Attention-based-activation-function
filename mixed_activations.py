@@ -9,7 +9,8 @@ MLP_list = ['MLP1', 'MLP1_neg', 'MLP2', 'MLP3', 'MLP4', 'MLP5']
 
 
 class MIX(nn.Module):
-    def __init__(self, act_fn, combinator, neurons, normalize=None, init='random', alpha_dropout=None, plot=False):
+    def __init__(self, act_fn, combinator, neurons, normalize=None, init='random',
+                 alpha_dropout=None, plot=False, hr_test=False):
         super(MIX, self).__init__()
         self.combinator = combinator  # name of the combinator, e.g. "Linear"
         self.act_fn = act_fn  # basic activation function to be used, e.g. "Tanh, Sigmoid"
@@ -24,6 +25,8 @@ class MIX(nn.Module):
                            'identity': Identity(),
                            'softmax': nn.Softmax()}
         self.plot = plot
+        self.hr_test = hr_test
+        # TODO: assert hr_test != False implies combinator=='MLP_ATT_b'
         if combinator == 'Linear':  # 3 different alpha initialization for the Linear combinator
             assert init in ['normal', 'uniform', 'random'], "init must be 'normal','uniform','random'"
             if init == 'normal':  # sample taken from a gaussian N(0,1)
@@ -53,7 +56,7 @@ class MIX(nn.Module):
         alpha_dropout = self.alpha_dropout
         normalize = self.normalize
         act_module = self.act_module
-        res, params, beta = None, None, None
+        res, alpha, beta, params = None, None, None, None
 
         if combinator != 'None':
             if combinator not in MLP_neg:  # compute basic activations results, e.g. [tanh(s), sigmoid(s)] w/ s = input
@@ -97,13 +100,11 @@ class MIX(nn.Module):
                     # return res, alpha, beta
                 else:
                     res = torch.sum(alpha * activations, axis=-1)
-                # uncomment for hard routing
-                '''
-                if not self.training:
+                # uncomment next if for hard routing
+                if not self.training and self.hr_test:
                     alpha_max, idx = torch.max(alpha, dim=2)
                     mask = torch.arange(alpha.size(-1)).reshape(1, 1, -1) == idx.unsqueeze(-1)
                     res = activations[mask].reshape(alpha_max.shape)
-                '''
             else:  # combinator in ['MLP1', 'MLP2', 'MLP3', 'MLP4', 'MLP5', 'MLPr']
                 # the results will be computed by an MLP with dim (input, output) = (n,1) where n = num. of act_fn
                 res = torch.cat([mod(activations[:, i, :]) for i, mod in enumerate(self.MLP_list)], dim=-1)

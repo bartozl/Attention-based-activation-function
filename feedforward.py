@@ -52,10 +52,11 @@ def train(config):
 def test(config):
     load_dir = f'{config["save_dir"]}/weights/'
     model_list = sorted(list(map(lambda m: int(m.split('.')[0]), os.listdir(load_dir))))
-    with open(f'{config["save_dir"]}/results.json') as f:
-        results = json.load(f)
-        start_from_epoch = list(results["test_acc"])[-1] if results["test_acc"]['1'] is not None else 0
-    model_list = model_list[int(start_from_epoch):]
+    if not hr_test:
+        with open(f'{config["save_dir"]}/results.json') as f:
+            results = json.load(f)
+            start_from_epoch = list(results["test_acc"])[-1] if results["test_acc"]['1'] is not None else 0
+        model_list = model_list[int(start_from_epoch):]
     for epoch in model_list:
         # print(epoch)
         acc = 0
@@ -75,7 +76,7 @@ def test(config):
                 Predicted += predicted
         test_acc = 100 * acc / config['len_test']
         # test_acc_per_epoch[str(epoch)] = test_acc
-        utils.save_results(config, None, test_acc, str(epoch))
+        utils.save_results(config, None, test_acc, str(epoch), hr_test=hr_test)
         print(f'epoch: {epoch} - test accuracy: {round(test_acc, 3):.3f}')
 
 
