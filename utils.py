@@ -272,7 +272,8 @@ def grid_accuracy(results, label, ax, i, first=False, color='green'):
         if (j + 1) % 20 != 0:
             label_ax.set_visible(False)
 
-
+# TODO delete results['epoch'] key
+# TODO delete plot argument
 def compute_activations(results, epoch, path, plot=False):
     state_dict = torch.load(f'{path}/weights/{epoch}.pth')  # load the model of the whole original network
     state_dict_filt = {'.'.join(k.split('.')[1:]): v for k, v in state_dict.items()}  # adjust the name of the parameters
@@ -288,10 +289,11 @@ def compute_activations(results, epoch, path, plot=False):
         return output.T
     else:
         if results['combinator'] == 'MLP_ATT_b':
-            output, alpha, bias = mix(input_.T)
+            output, alpha, bias, params = mix(input_.T)
             alpha = alpha.permute(1, 0, 2)
-            alpha = torch.sum(torch.nn.functional.softmax(alpha,dim=-1), dim=1) / alpha.shape[1]
-            return output.T, alpha, bias
+            alpha = torch.sum(alpha, dim=1) / alpha.shape[1]
+            return output.T, alpha, bias, params
+
         elif results['combinator'] in ATT_LIST:
             output, alpha = mix(input_.T)
             alpha = alpha.permute(1, 0, 2)

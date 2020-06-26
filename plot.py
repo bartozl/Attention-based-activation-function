@@ -44,7 +44,7 @@ def plot_activations(path_dict, plot_it):
                 if results['combinator'] in MLP_LIST + ['MLP1_neg']:
                     output = utils.compute_activations(results, epoch, path)
                 elif results['combinator'] == 'MLP_ATT_b':
-                    output, alpha, bias = utils.compute_activations(results, epoch, path, plot=True)
+                    output, alpha, bias, _ = utils.compute_activations(results, epoch, path, plot=True)
                 elif results['combinator'] in ATT_LIST+['Linear']:
                     output, alpha = utils.compute_activations(results, epoch, path, plot=True)
                 else:
