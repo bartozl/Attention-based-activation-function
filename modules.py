@@ -4,7 +4,7 @@ import mixed_activations
 
 
 class Network(nn.Module):
-    def __init__(self, act, combinator, norm, init, drop, hr_test=False):
+    def __init__(self, act, combinator, norm, init, drop, hr_test=None):
         super(Network, self).__init__()
         self.l1 = nn.Linear(784, 128)
         self.mix = mixed_activations.MIX(act, combinator, neurons=128, normalize=norm, init=init, alpha_dropout=drop, hr_test=hr_test)

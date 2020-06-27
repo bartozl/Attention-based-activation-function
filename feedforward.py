@@ -52,11 +52,12 @@ def train(config):
 def test(config):
     load_dir = f'{config["save_dir"]}/weights/'
     model_list = sorted(list(map(lambda m: int(m.split('.')[0]), os.listdir(load_dir))))
-    if not hr_test:
+    if hr_test is None:
         with open(f'{config["save_dir"]}/results.json') as f:
             results = json.load(f)
             start_from_epoch = list(results["test_acc"])[-1] if results["test_acc"]['1'] is not None else 0
         model_list = model_list[int(start_from_epoch):]
+
     for epoch in model_list:
         # print(epoch)
         acc = 0
@@ -97,10 +98,11 @@ def main(config):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="MNIST")
-    parser.add_argument("-hr_test", action="store_true")
+    parser.add_argument("-hr_test", type=float, default=None)
     parser.add_argument("-colab", action="store_true")
     args = parser.parse_args()
     hr_test = args.hr_test
+    # assert hr_test in [None, "1", "2"], "hr_test must be 1, 2 or None!!!"
     run_configs = utils.load_run_config('run_config.json')
     configs = utils.generate_configs(run_configs, hr_test, args.colab)  # list of configurations (=dict) to be trained
     time0 = time()  # total run time

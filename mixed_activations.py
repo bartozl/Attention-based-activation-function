@@ -2,7 +2,6 @@ import torch
 from torch import nn
 from modules import MLP, Antirelu, Identity
 
-
 MLP_neg = ['MLP1_neg', 'MLP_ATT_neg']
 ATT_list = ['MLP_ATT', 'MLP_ATT_neg', 'MLP_ATT_b']
 MLP_list = ['MLP1', 'MLP1_neg', 'MLP2', 'MLP3', 'MLP4', 'MLP5']
@@ -10,7 +9,7 @@ MLP_list = ['MLP1', 'MLP1_neg', 'MLP2', 'MLP3', 'MLP4', 'MLP5']
 
 class MIX(nn.Module):
     def __init__(self, act_fn, combinator, neurons, normalize=None, init='random',
-                 alpha_dropout=None, plot=False, hr_test=False):
+                 alpha_dropout=None, hr_test=None):
         super(MIX, self).__init__()
         self.combinator = combinator  # name of the combinator, e.g. "Linear"
         self.act_fn = act_fn  # basic activation function to be used, e.g. "Tanh, Sigmoid"
@@ -24,7 +23,6 @@ class MIX(nn.Module):
                            'antirelu': Antirelu(),
                            'identity': Identity(),
                            'softmax': nn.Softmax()}
-        self.plot = plot
         self.hr_test = hr_test
         # TODO: assert hr_test != False implies combinator=='MLP_ATT_b'
         if combinator == 'Linear':  # 3 different alpha initialization for the Linear combinator
@@ -48,7 +46,6 @@ class MIX(nn.Module):
             for i in range(neurons // 2):
                 self.MLP_list.extend([MLP('MLP1')])
                 self.MLP_list.extend([MLP('MLP2')])
-
 
     def forward(self, s):
         act_fn = self.act_fn
@@ -81,7 +78,7 @@ class MIX(nn.Module):
                 # each neuron is associated with a MLP with (input, output) = (n, n) where n = num. of basic act_fn
 
                 alpha = torch.cat([self.act_module['softmax'](mod(activations[:, i, :])).unsqueeze(1)
-                                  for i, mod in enumerate(self.MLP_list)],
+                                   for i, mod in enumerate(self.MLP_list)],
                                   dim=1)  # e.g. [256, 128, 4] (or [256, 128, 8] for neg)
 
                 params = alpha
@@ -101,10 +98,16 @@ class MIX(nn.Module):
                 else:
                     res = torch.sum(alpha * activations, axis=-1)
                 # uncomment next if for hard routing
-                if not self.training and self.hr_test:
+                if (not self.training) and (self.hr_test is not None):
                     alpha_max, idx = torch.max(alpha, dim=2)
                     mask = torch.arange(alpha.size(-1)).reshape(1, 1, -1) == idx.unsqueeze(-1)
                     res = activations[mask].reshape(alpha_max.shape)
+                    if self.hr_test != 0.0:
+                        alpha_mid_range = torch.abs(torch.max(alpha, dim=-1, keepdim=True)[0] -
+                                                    torch.min(alpha, dim=-1, keepdim=True)[0])/2
+                        res = res.unsqueeze(-1)
+                        condition = alpha_mid_range >= self.hr_test
+                        res = torch.where(condition, res, s.unsqueeze(-1)).squeeze(-1)
             else:  # combinator in ['MLP1', 'MLP2', 'MLP3', 'MLP4', 'MLP5', 'MLPr']
                 # the results will be computed by an MLP with dim (input, output) = (n,1) where n = num. of act_fn
                 res = torch.cat([mod(activations[:, i, :]) for i, mod in enumerate(self.MLP_list)], dim=-1)
