@@ -21,7 +21,7 @@ act_module = {'relu': nn.ReLU(),  # dictionary containing useful functions
               'identity': Identity(),
               'softmax': nn.Softmax()}
 # TODO set n_epochs = 20
-n_epochs = 10
+n_epochs = 20
 
 
 def plot_activations(path_dict, plot_it):
@@ -32,7 +32,7 @@ def plot_activations(path_dict, plot_it):
             with open(path + '/results.json', 'r') as f:
                 results = json.load(f)
             dest_path = f'{path}/plot/'  # where the imgs will be saved
-            print(results['combinator'], act)
+            # print(results['combinator'], act)
             if results['combinator'] not in plot_it:
                 continue
             if len(os.listdir(dest_path)) == 12:  # imgs for epochs in [1, 20, 40, ... 200] + 1 img with all neurons'act
@@ -41,12 +41,8 @@ def plot_activations(path_dict, plot_it):
             for epoch in results['train_acc'].keys():
                 if int(epoch) % n_epochs != 0 and int(epoch) != 1:  # plot every 20 epochs (first epoch included)
                     continue
-                if results['combinator'] in MLP_LIST + ['MLP1_neg']:
-                    output = utils.compute_activations(results, epoch, path)
-                elif results['combinator'] == 'MLP_ATT_b':
-                    output, alpha, bias, _ = utils.compute_activations(results, epoch, path, plot=True)
-                elif results['combinator'] in ATT_LIST+['Linear']:
-                    output, alpha = utils.compute_activations(results, epoch, path, plot=True)
+                if results['combinator'] in MLP_LIST + MLP_neg + ATT_LIST + ['Linear']:
+                    output, alpha, bias, _ = utils.compute_activations(results, epoch, path)
                 else:
                     print(f"no plot method available for {results['combinator']} combinator...")
                     continue

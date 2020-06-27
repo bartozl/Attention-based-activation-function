@@ -27,7 +27,7 @@ MLP_neg = ['MLP1_neg', 'MLP_ATT_neg']
 # ============================================= #
 
 
-def create_save_dir(run_config, init, normalize, act_list, lambda_l1, drop, test_only):
+def create_save_dir(run_config, init, normalize, act_list, lambda_l1, drop, hr_test):
     acts = '_'.join(act_list)
     if run_config['combinator'] == 'Linear':
         save_dir = f'../experiments/{run_config["dataset"]}/{run_config["combinator"]}' \
@@ -45,7 +45,7 @@ def create_save_dir(run_config, init, normalize, act_list, lambda_l1, drop, test
         print('ERROR: unknown combinator')
         sys.exit(0)
     if Path(f'{save_dir}results.json').exists():
-        if test_only:
+        if hr_test is not None:
             return save_dir
     #    else:
     #        return False
@@ -147,7 +147,7 @@ def save_state(config, dest_path, acc, train_=True):
     return new_acc
 
 
-def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=False):
+def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
 
     first_save = False
     try:
@@ -175,17 +175,17 @@ def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=False):
                    'alpha_dropout': config['alpha_dropout']
                    }
     else:
-        if not hr_test:
+        if hr_test is None:
             if train_acc is None:
                 results['test_acc'][epoch] = test_acc
             if test_acc is None:
                 results['train_acc'][epoch] = train_acc
                 results['loss'][epoch] = loss
         else:
-            if 'test_acc_hr' not in results:
-                results['test_acc_hr'] = {1: test_acc}
+            if f'test_acc_hr_{hr_test}' not in results:
+                results[f'test_acc_hr_{hr_test}'] = {1: test_acc}
             else:
-                results['test_acc_hr'][epoch] = test_acc
+                results[f'test_acc_hr_{hr_test}'][epoch] = test_acc
 
     print('...Saving results...')
     with open(config['save_dir'] + 'results.json', 'w') as f:
@@ -272,38 +272,24 @@ def grid_accuracy(results, label, ax, i, first=False, color='green'):
             label_ax.set_visible(False)
 
 # TODO delete results['epoch'] key
-# TODO delete plot argument
-def compute_activations(results, epoch, path, plot=False):
+def compute_activations(results, epoch, path):
     state_dict = torch.load(f'{path}/weights/{epoch}.pth')  # load the model of the whole original network
     state_dict_filt = {'.'.join(k.split('.')[1:]): v for k, v in state_dict.items()}  # adjust the name of the parameters
     # print(state_dict)
     del state_dict_filt['weight']  # delete the parameter of the original network linear layers in order to keep only\
     del state_dict_filt['bias']  # the MIX layer parameters
-    mix = MIX(results['act_fn'], results['combinator'], 128, results['normalize'], results['init'], plot=plot)
+    mix = MIX(results['act_fn'], results['combinator'], 128, results['normalize'], results['init'])
     mix.eval()  # evaluation mode
     mix.load_state_dict(state_dict_filt)  # load the MIX parameters
     # print(results["combinator"], 'output.shape', output.shape)
-    if not plot:
-        output = mix(input_.T)
-        return output.T
-    else:
-        if results['combinator'] == 'MLP_ATT_b':
-            output, alpha, bias, params = mix(input_.T)
-            alpha = alpha.permute(1, 0, 2)
-            alpha = torch.sum(alpha, dim=1) / alpha.shape[1]
-            return output.T, alpha, bias, params
 
-        elif results['combinator'] in ATT_LIST:
-            output, alpha = mix(input_.T)
-            alpha = alpha.permute(1, 0, 2)
-            alpha = torch.sum(alpha, dim=1) / alpha.shape[1]
-            return output.T, alpha
-        elif results['combinator'] == 'Linear':
-            output, alpha = mix(input_.T)
-            return output.T, alpha
-        else:
-            return mix(input_.T).T
+    output, alpha, bias, params = mix(input_.T)
 
+    if results['combinator'] in ATT_LIST:
+        alpha = alpha.permute(1, 0, 2)
+        alpha = torch.sum(alpha, dim=1) / alpha.shape[1]
+
+    return output.T, alpha, bias, params
 
 def create_path_dict(save_path):
     """
