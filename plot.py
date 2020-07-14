@@ -24,7 +24,7 @@ act_module = {'relu': nn.ReLU(),  # dictionary containing useful functions
 n_epochs = 20
 
 
-def plot_activations(path_dict, plot_it):
+def plot_activations(path_dict):
     fixed_output = None  # store the first epoch activation i.o.t. compare it with acts of the others epochs
     alpha, bias = None, None
     for act in path_dict:
@@ -33,7 +33,7 @@ def plot_activations(path_dict, plot_it):
                 results = json.load(f)
             dest_path = f'{path}/plot/'  # where the imgs will be saved
             # print(results['combinator'], act)
-            if results['combinator'] not in plot_it:
+            if (plot_it is not None) and (results['combinator'] not in plot_it):
                 continue
             if len(os.listdir(dest_path)) == 12:  # imgs for epochs in [1, 20, 40, ... 200] + 1 img with all neurons'act
                 continue
@@ -54,7 +54,7 @@ def plot_activations(path_dict, plot_it):
 
 def plot_accuracy(path_dict, dest_path):
     path_dict_ = path_dict.copy()
-    pairs_to_compare = [['MLP2', 'L_unif_none']]  # it must be a list of lists!
+    pairs_to_compare = [['MLP2', 'MLP1']]  # it must be a list of lists!
     for relu_path in path_dict_['relu']:
         with open(relu_path + '/results.json', 'r') as f:
             results_relu = json.load(f)
@@ -86,17 +86,27 @@ def plot_accuracy(path_dict, dest_path):
 def plot_table(path_dict, save_path):
     pd.set_option('display.precision', 4)
     pd.set_option('display.width', 40)
+    pd.set_option('display.float_format', '{:,.3f}'.format)
 
     for i, act in enumerate(path_dict.keys()):
         row_labels, values_train, values_test = [], [], []
         for path in path_dict[act]:
             with open(path + '/results.json', 'r') as f:
                 results = json.load(f)
+                if (plot_it is not None) and (results['combinator'] not in plot_it):
+                    continue
                 if i == 0:
                     col_labels = utils.fill_col_labels(results)
                 temp_train, temp_test = utils.fill_row_values(results, path, act)
                 values_train.append(temp_train)
                 values_test.append(temp_test)
+                if 'test_acc_hr_0.0' in results:
+                    temp_train, temp_test = utils.fill_row_values(results, path, act,hr=0.0)
+                    values_train.append(temp_train)
+                    values_test.append(temp_test)
+
+
+
 
         # create table
         table_train = utils.create_table(values_train, col_labels, act, 'train')
@@ -106,24 +116,21 @@ def plot_table(path_dict, save_path):
 
 
 def plot_table_max(path_dict, save_path, limit):
-    res_json = ['results.json', 'results_hr.json']
     row_labels, values_train, values_test = [], [], []
     for i, act in enumerate(path_dict.keys()):
         for path in path_dict[act]:
-            for res in res_json:
-                try:
-                    with open(f'{path}/{res}', 'r') as f:
-                        results = json.load(f)
-                        # att = 2 if res == 'results_hr.json' else 0
-                except Exception as e:
-                    continue
-                if i == 0:
-                    col_labels = utils.fill_col_labels(results, max_=True, att=2)
-                temp_train, temp_test = utils.fill_row_values(results, path, act, max_=True, att=2)
-                if True not in np.where(temp_test[8] >= limit, True, False):
-                    continue
-                values_train.append(temp_train)
-                values_test.append(temp_test)
+            with open(f'{path}/results.json', 'r') as f:
+                results = json.load(f)
+            if (plot_it is not None) and (results['combinator'] not in plot_it):
+                continue
+            if i == 0:
+                col_labels = utils.fill_col_labels(results, max_=True, att=2)
+            temp_train, temp_test = utils.fill_row_values(results, path, act, max_=True, att=2)
+            print(temp_test[9])
+            if True not in np.where(temp_test[9] >= limit, True, False):
+                continue
+            values_train.append(temp_train)
+            values_test.append(temp_test)
 
     # create table
     table_train = utils.create_table(values_train, col_labels, '', 'train', max_=True)
@@ -134,25 +141,23 @@ def plot_table_max(path_dict, save_path, limit):
 
 
 def plot_table_attention(path_dict, save_path):
-    res_json = ['results.json', 'results_hr.json']
     for i, act in enumerate(path_dict.keys()):
         row_labels, values_train, values_test = [], [], []
         if act not in COMBINED_ACT:
             continue
         for path in path_dict[act]:
             # print(act)
-            for res in res_json:
-                try:
-                    with open(f'{path}/{res}', 'r') as f:
-                        results = json.load(f)
-                        # att = 1 if res == 'results_hr.json' else 0
-                except Exception as e:
-                    continue
-                if results['combinator'] not in ATT_LIST:
-                    continue
-                if i == 0:
-                    col_labels = utils.fill_col_labels(results, att=1)
-                temp_train, temp_test = utils.fill_row_values(results, path, act, att=1)
+            with open(f'{path}/results.json', 'r') as f:
+                results = json.load(f)
+            if results['combinator'] not in ATT_LIST or results['combinator'] not in plot_it:
+                continue
+            if i == 0:
+                col_labels = utils.fill_col_labels(results, att=1)
+            temp_train, temp_test = utils.fill_row_values(results, path, act, att=1)
+            values_train.append(temp_train)
+            values_test.append(temp_test)
+            if 'test_acc_hr_0.0' in results:
+                temp_train, temp_test = utils.fill_row_values(results, path, act, att=1, hr=0.0)
                 values_train.append(temp_train)
                 values_test.append(temp_test)
 
@@ -181,6 +186,7 @@ if __name__ == '__main__':
 
     path_dict = utils.create_path_dict(source_path)
     # print(path_dict.keys())
+    plot_it = ['None', 'MLP_ATT','MLP_ATT_neg', 'MLP1', 'MLP2', 'Linear', 'MLP_ATT_b']
 
     if args.table:
         print('plotting table...')
@@ -200,6 +206,6 @@ if __name__ == '__main__':
 
     if args.activations:
         print('plotting activations...')
-        plot_activations(path_dict, ['MLP_ATT_b'])
+        plot_activations(path_dict)
 
 # ['MLP1', 'MLP2', 'Linear', 'MLP_ATT', 'MLP_ATT_neg'] <-- already plotted

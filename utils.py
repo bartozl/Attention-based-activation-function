@@ -27,20 +27,20 @@ MLP_neg = ['MLP1_neg', 'MLP_ATT_neg']
 # ============================================= #
 
 
-def create_save_dir(run_config, init, normalize, act_list, lambda_l1, drop, hr_test):
+def create_save_dir(dataset, combinator, init, normalize, act_list, lambda_l1, drop, hr_test):
     acts = '_'.join(act_list)
-    if run_config['combinator'] == 'Linear':
-        save_dir = f'../experiments/{run_config["dataset"]}/{run_config["combinator"]}' \
+    if combinator == 'Linear':
+        save_dir = f'../experiments/{dataset}/{combinator}' \
                    f'/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
-    elif run_config['combinator'] in MLP_LIST:
-        save_dir = f'../experiments/{run_config["dataset"]}/MLP/{run_config["combinator"]}' \
+    elif combinator in MLP_LIST:
+        save_dir = f'../experiments/{dataset}/MLP/{combinator}' \
                    f'/init_None/norm_{normalize}/{acts}/{lambda_l1}/'
-    elif run_config['combinator'] == 'Kwinners':
-        save_dir = f'../experiments/{run_config["dataset"]}/' \
-                   f'{run_config["combinator"]}/{run_config["k"]}/'
-    elif run_config['combinator'] in ATT_LIST:
-        save_dir = f'../experiments/{run_config["dataset"]}/ATT/{run_config["combinator"]}' \
+    elif combinator in ATT_LIST:
+        save_dir = f'../experiments/{dataset}/ATT/{combinator}' \
                    f'/init_None/norm_{normalize}/drop_{drop}/{acts}/{lambda_l1}/'
+    elif combinator == 'None':
+        save_dir = f'../experiments/{dataset}/{combinator}' \
+                   f'/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
     else:
         print('ERROR: unknown combinator')
         sys.exit(0)
@@ -56,23 +56,30 @@ def create_save_dir(run_config, init, normalize, act_list, lambda_l1, drop, hr_t
 
 
 def load_dataset(dataset_name, subset, batch_size, colab):
+    if colab:
+        data_path = '~/../content/'
+    else:
+        data_path = '../datasets/'
+
     if dataset_name == 'MNIST':
-        transform = transforms.Compose([transforms.ToTensor(),
-                                        transforms.Normalize((0.5,), (0.5,)),
-                                        ])
-        if colab:
-            data_path = '~/../content/'
-        else:
-            data_path = '../datasets/'
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,)), ])
         train_dataset = datasets.MNIST(data_path, download=True, train=True, transform=transform)
         test_dataset = datasets.MNIST(data_path, download=True, train=False, transform=transform)
-        len_train, len_test = int(len(train_dataset) * subset), int(len(test_dataset) * subset)
-        subset_indices_train, subset_indices_test = range(len_train), range(len_test)
-        data_train = DataLoader(train_dataset, batch_size=batch_size, sampler=SubsetRandomSampler(subset_indices_train))
-        data_test = DataLoader(test_dataset, batch_size=batch_size, sampler=SubsetRandomSampler(subset_indices_test))
+
+    elif dataset_name == 'CIFAR10':
+        transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+        train_dataset = datasets.CIFAR10(data_path, download=True, train=True, transform=transform)
+        test_dataset = datasets.CIFAR10(data_path, download=True, train=False, transform=transform)
+
     else:
         print('unknown dataset')
         sys.exit(0)
+
+    len_train, len_test = int(len(train_dataset) * subset), int(len(test_dataset) * subset)
+    subset_indices_train, subset_indices_test = range(len_train), range(len_test)
+    data_train = DataLoader(train_dataset, batch_size=batch_size, sampler=SubsetRandomSampler(subset_indices_train))
+    data_test = DataLoader(test_dataset, batch_size=batch_size, sampler=SubsetRandomSampler(subset_indices_test))
+
     return data_train, data_test, len_train, len_test
 
 
@@ -85,54 +92,57 @@ def load_run_config(run_config):
     return run_config
 
 def reset_seed(seed):
-    np.random.seed(seed)  # allows reproducibility
-    torch.manual_seed(seed)  # allows reproducibility
+    np.random.seed(seed)
+    torch.manual_seed(seed)
     random.seed(seed)
 
 
 def generate_configs(run_config, hr_test, colab):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     savedirs, configs = [], []
-    data_train, data_test, len_train, len_test = load_dataset(run_config['dataset'],
-                                                              run_config['subset'],
-                                                              run_config['batch_size'],
-                                                              colab)
     for norm_ in run_config['normalize']:
         for act_ in run_config['act_fn']:
             for lamb_ in run_config['lambda_l1']:
                 for init_ in run_config['init']:
                     for drop_ in run_config['alpha_dropout']:
-                        reset_seed(run_config['random_seed'])
-                        save_dir = create_save_dir(run_config, init_, norm_, act_, lamb_, drop_, hr_test)
-                        if (save_dir is False) or (save_dir in savedirs):
-                            continue
-                        savedirs.append(save_dir)
-                        # if run_config['dataset'] == 'MNIST':
-                        network = Network(act_, run_config['combinator'], norm_, init_, drop_, hr_test).to(device)
-                        config = {'save_dir': save_dir,
-                                  'data_test': data_test,
-                                  'data_train': data_train,
-                                  'len_train': len_train,
-                                  'len_test': len_test,
-                                  'act_fn': act_,
-                                  'normalize': norm_,
-                                  'init': init_,
-                                  'lambda_l1': lamb_,
-                                  'neurons': 128,
-                                  'network': network,
-                                  'optimizer': torch.optim.Adam(network.parameters(), lr=1e-3, weight_decay=1e-4),
-                                  'device': device,
-                                  'save_every': 1,
-                                  'combinator': run_config['combinator'],
-                                  'run_name': run_config['run_name'],
-                                  'random_seed': run_config['random_seed'],
-                                  'batch_size': run_config['batch_size'],
-                                  'dataset': run_config['dataset'],
-                                  'epochs': run_config['epochs'],
-                                  'k': run_config['k'] if run_config['combinator'] == 'Kwinners' else None,
-                                  'alpha_dropout': drop_ if run_config['combinator'] in ATT_LIST else None
-                                  }
-                        configs.append(config)
+                        for combinator in run_config['combinator']:
+                            for dataset in run_config['dataset']:
+                                data_train, data_test, len_train, len_test = load_dataset(dataset,
+                                                                                          run_config['subset'],
+                                                                                          run_config['batch_size'],
+                                                                                          colab)
+                                reset_seed(run_config['random_seed'])
+                                save_dir = create_save_dir(dataset, combinator, init_, norm_, act_, lamb_, drop_, hr_test)
+                                if (save_dir is False) or (save_dir in savedirs):
+                                    continue
+                                savedirs.append(save_dir)
+                                # if run_config['dataset'] == 'MNIST':
+                                network = Network(run_config['nn_layers'], dataset, act_, combinator,
+                                                  norm_, init_, drop_, hr_test).to(device)
+                                print(network)
+                                config = {'save_dir': save_dir,
+                                          'data_test': data_test,
+                                          'data_train': data_train,
+                                          'len_train': len_train,
+                                          'len_test': len_test,
+                                          'act_fn': act_,
+                                          'normalize': norm_,
+                                          'init': init_,
+                                          'lambda_l1': lamb_,
+                                          'network': network,
+                                          'nn_layers': run_config['nn_layers'],
+                                          'optimizer': torch.optim.Adam(network.parameters(), lr=1e-3, weight_decay=1e-4),
+                                          'device': device,
+                                          'save_every': 1,
+                                          'combinator': combinator,
+                                          'run_name': run_config['run_name'],
+                                          'random_seed': run_config['random_seed'],
+                                          'batch_size': run_config['batch_size'],
+                                          'dataset': dataset,
+                                          'epochs': run_config['epochs'],
+                                          'alpha_dropout': drop_ if run_config['combinator'] in ATT_LIST else None
+                                          }
+                                configs.append(config)
     return configs
 
 
@@ -159,7 +169,6 @@ def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
     if first_save:
         results = {'act_fn': config['act_fn'],
                    'epochs': config['epochs'],
-                   'act_per_neuron': config['neurons'] if config['neurons'] != 0 else None,
                    'train_acc': {1: train_acc},
                    'test_acc': {1: None},
                    'loss': {1: loss},
@@ -167,11 +176,11 @@ def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
                    'normalize': config['normalize'],
                    'combinator': config['combinator'],
                    'run_name': config['run_name'],
+                   'nn_layers': config['nn_layers'],
                    'dataset': config['dataset'],
                    'random_seed': config['random_seed'],
                    'batch_size': config['batch_size'],
                    'init': config['init'],
-                   'k': config['k'],
                    'alpha_dropout': config['alpha_dropout']
                    }
     else:
@@ -187,7 +196,7 @@ def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
             else:
                 results[f'test_acc_hr_{hr_test}'][epoch] = test_acc
 
-    print('...Saving results...')
+    # print('...Saving results...')
     with open(config['save_dir'] + 'results.json', 'w') as f:
         json.dump(results, f, indent=4)
     return results
@@ -323,13 +332,14 @@ def create_path_dict(save_path):
                 temp = filepath.split('/')
                 if act == temp[-1] or act == temp[-2]:
                     path_dict[act].append(filepath)
+    print(path_dict)
     return path_dict
 
 
 def compute_distance(results, path):
     if results['combinator'] in MLP_LIST + ATT_LIST + MLP_neg + ['Linear']:
-        o1 = compute_activations(results, '1', path)
-        o2 = compute_activations(results, '200', path)
+        o1, _, _, _ = compute_activations(results, '1', path)
+        o2, _, _, _ = compute_activations(results, '200', path)
     elif results['combinator'] == 'Kwinners':
         return 0, neurons - results['k']
     else:
@@ -353,6 +363,7 @@ def fill_col_labels(results, max_=False, att=False, n_epochs=20):
     col_labels.append('zeroed neurons')
     col_labels.append('drop')
     col_labels.append('normaliz')
+    col_labels.append('lambda')
     if att == 0:
         col_labels.append('init')
     elif att == 1:
@@ -368,7 +379,7 @@ def fill_col_labels(results, max_=False, att=False, n_epochs=20):
     return col_labels
 
 
-def fill_row_values(results, path, act='', max_=False, att=0, n_epochs=20):
+def fill_row_values(results, path, act='', max_=False, att=0, hr=-1, n_epochs=20):
     values_train_temp = [results['combinator']]
     if max_:
         temp = act.split('_')
@@ -379,10 +390,11 @@ def fill_row_values(results, path, act='', max_=False, att=0, n_epochs=20):
     alpha_dropout = f'{results.get("alpha_dropout", "-")}'
     values_train_temp.append(alpha_dropout if alpha_dropout != 'None' else '-')
     values_train_temp.append(results['normalize'] if results['normalize'] != 'None' else '-')
+    values_train_temp.append(results['lambda_l1'])
     if att == 0:
         values_train_temp.append(results['init'] if results['init'] != 'None' else '-')
     elif att == 1:
-        values_train_temp.append('✔' if results.get('hr', False) is True else '✗')
+        values_train_temp.append('✔' if hr != -1 else '✗')
     elif att == 2:
         values_train_temp.append(results['init'] if results['init'] != 'None' else '-')
         values_train_temp.append('✔' if results.get('hr', False) is True else '✗')
@@ -391,12 +403,19 @@ def fill_row_values(results, path, act='', max_=False, att=0, n_epochs=20):
 
     values_train_temp.append(max(list(results['train_acc'].values())) / 100)
     values_train_temp.append(min(list(results['train_acc'].values())[40:]) / 100)
-    values_test_temp.append(max(list(results['test_acc'].values())) / 100)
-    values_test_temp.append(min(list(results['test_acc'].values())[40:]) / 100)
+    if hr == 0.0:
+        values_test_temp.append(max(list(results['test_acc_hr_0.0'].values())) / 100)
+        values_test_temp.append(min(list(results['test_acc_hr_0.0'].values())[40:]) / 100)
+    else:
+        values_test_temp.append(max(list(results['test_acc'].values())) / 100)
+        values_test_temp.append(min(list(results['test_acc'].values())[40:]) / 100)
     count_train, count_test = 0, 0
     for epoch in list(results['train_acc'].keys()):
         count_train += results['train_acc'][epoch] / 100
-        count_test += results['test_acc'][epoch] / 100
+        if hr == 0.0:
+            count_test += results['test_acc_hr_0.0'][epoch] / 100
+        else:
+            count_test += results['test_acc'][epoch] / 100
         if int(epoch) % n_epochs == 0:
             values_train_temp.append(count_train / n_epochs)
             values_test_temp.append(count_test / n_epochs)
@@ -473,6 +492,7 @@ def create_table(values, col_labels, act, s, max_=False, att=0):
         - color the 'norm' column values
         - highlights all the cells that match the 3 best accuracies reached by all the experiments
           (best: orange, 2nd best: yellow, 3rd best: lightyellow)
+        - adjust the table style to increase readability
         - adjust the table style to increase readability
     """
     sort_by = ['combinator', 'normaliz', 'drop'] if att != 0 else ['combinator', 'normaliz', 'init', 'drop']

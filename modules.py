@@ -4,18 +4,39 @@ import mixed_activations
 
 
 class Network(nn.Module):
-    def __init__(self, act, combinator, norm, init, drop, hr_test=None):
+    def __init__(self, nn_layers, dataset, act, combinator, norm, init, drop, hr_test=None):
         super(Network, self).__init__()
-        self.l1 = nn.Linear(784, 128)
-        self.mix = mixed_activations.MIX(act, combinator, neurons=128, normalize=norm, init=init, alpha_dropout=drop, hr_test=hr_test)
-        self.l2 = nn.Linear(128, 10)
+
+        if dataset == 'MNIST':
+            in_neurons = 784
+        else:  # dataset == 'CIFAR10'
+            in_neurons = 3072
+
+        self.nn_layers = nn_layers
+        self.mix = mixed_activations.MIX(act, combinator, neurons=in_neurons//2**(nn_layers-1), normalize=norm,
+                                          init=init, alpha_dropout=drop, hr_test=hr_test)
+        self.layers_list = nn.ModuleList()
+
+        for layer in range(nn_layers):
+            if layer == nn_layers-1:
+                self.layers_list.append(nn.Linear(in_neurons, 10))
+            else:
+                self.layers_list.append(nn.Linear(in_neurons, in_neurons//2))
+            in_neurons = in_neurons//2
+
         self.out = nn.LogSoftmax(dim=1)
 
     def forward(self, s):
-        l1_out = self.l1(s)
-        mix_out, alpha, beta, params = self.mix(l1_out)
-        l2_out = self.out(self.l2(mix_out))
-        return l2_out, alpha, beta, params
+        l_out, act_out = None, s
+        for i in range(len(self.layers_list)):
+            if i < self.nn_layers - 1:  # use relu for all layers except the last one
+                l_out = self.layers_list[i](act_out)
+                act_out = torch.relu(l_out)
+            else:
+                act_out, _, _, _ = self.mix(l_out)
+
+        out = self.out(l_out)
+        return out, None, None, None
 
 
 class Antirelu(nn.Module):

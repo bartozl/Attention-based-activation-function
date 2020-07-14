@@ -8,10 +8,11 @@ from datetime import timedelta
 import utils
 from pathlib import Path
 
-# TODO: try applying l1 normalization on MIX weights
+
 def train(config):
     print('number of trained parameters', sum(p.numel() for p in config['network'].parameters() if p.requires_grad))
     load_this_model = ''
+    print()
     for epoch in range(1, config['epochs'] + 1):
         dest_path = f'{config["save_dir"]}/weights/{epoch}.pth'
         full_dest_path = Path(str(Path().absolute()) + "/" + dest_path)
@@ -48,7 +49,6 @@ def train(config):
               f"Time(tot): {timedelta(seconds=time() - time0)}")
 
 
-# TODO: implement hard-routing test
 def test(config):
     load_dir = f'{config["save_dir"]}/weights/'
     model_list = sorted(list(map(lambda m: int(m.split('.')[0]), os.listdir(load_dir))))
@@ -63,8 +63,8 @@ def test(config):
         acc = 0
         model = f'{load_dir}{epoch}.pth'
         state_dict = torch.load(model)
-        config['network'].eval()
         config['network'].load_state_dict(state_dict)
+        config['network'].eval()
         Y_batch, Predicted = [], []
         with torch.no_grad():
             for idx, (X_batch, y_batch) in enumerate(config['data_test']):
@@ -86,6 +86,8 @@ def test(config):
 def main(config):
     train_acc_per_epoch, test_acc_per_epoch = [], []  # store accuracies history
 
+    print(f'seed: {torch.initial_seed()}, dataset: {config["dataset"]}, '
+          f'len_train: {config["len_train"]}, len_test:{config["len_test"]}')
     print('...Training...')
     train(config)
 
@@ -99,16 +101,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="MNIST")
     parser.add_argument("-hr_test", type=float, default=None)
+    parser.add_argument("-config", type=str, required=True)
     parser.add_argument("-colab", action="store_true")
     args = parser.parse_args()
     hr_test = args.hr_test
     # assert hr_test in [None, "1", "2"], "hr_test must be 1, 2 or None!!!"
-    run_configs = utils.load_run_config('run_config.json')
+    run_configs = utils.load_run_config(args.config)
     configs = utils.generate_configs(run_configs, hr_test, args.colab)  # list of configurations (=dict) to be trained
     time0 = time()  # total run time
     for i, conf in enumerate(configs):
         print(f'[{i + 1}/{len(configs)}] {conf["save_dir"]}')
         try:
+            utils.reset_seed(conf['random_seed'])
             main(conf)
         except Exception as e:
             raise

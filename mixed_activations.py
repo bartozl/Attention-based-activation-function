@@ -56,15 +56,17 @@ class MIX(nn.Module):
         res, alpha, beta, params = None, None, None, None
 
         if combinator != 'None':
+
             if combinator not in MLP_neg:  # compute basic activations results, e.g. [tanh(s), sigmoid(s)] w/ s = input
                 activations = torch.cat([act_module[act](s).unsqueeze(-1) for act in act_fn], dim=-1)
+
             else:  # for MLP_neg also the negative basic activations are added in the list
                 temp_act = []
                 for act in act_fn:
-                    temp_act.append(act_module[act](s).unsqueeze(-1))
-                    temp_act.append(-1 * act_module[act](s).unsqueeze(-1))
+                    a = act_module[act](s).unsqueeze(-1)
+                    temp_act.append(a)
+                    temp_act.append(-1 * a)
                 activations = torch.cat(temp_act, dim=-1)
-                print(activations.shape)
 
             if combinator == 'Linear':
                 # the result is the linear combination of the basic activations, weighted by alpha (learned by the nn)
@@ -78,41 +80,45 @@ class MIX(nn.Module):
                 # each neuron is associated with a MLP with (input, output) = (n, n) where n = num. of basic act_fn
 
                 alpha = torch.cat([self.act_module['softmax'](mod(activations[:, i, :])).unsqueeze(1)
-                                   for i, mod in enumerate(self.MLP_list)],
-                                  dim=1)  # e.g. [256, 128, 4] (or [256, 128, 8] for neg)
+                                   for i, mod in enumerate(self.MLP_list)], dim=1)  # e.g. [256, 128, 4]
 
-                params = alpha
-                '''
-                params = torch.cat([mod(activations[:, i, :]).unsqueeze(1)
-                                   for i, mod in enumerate(self.MLP_list)],
-                                   dim=1)
-                alpha = torch.nn.functional.softmax(params, dim=-1)
-                '''
-                # params = torch.cat([x.view(-1) for mod in self.MLP_list for x in mod.parameters()], dim=-1)
-                if alpha_dropout is not None:  # apply dropout if required
+                # params = torch.cat([x.view(-1) for mod in self.MLP_list for x in mod.parameters()], dim=-1)  # l1_pen
+
+                if alpha_dropout is not None and alpha_dropout != 0.0:  # apply dropout if required
                     alpha = nn.Dropout(alpha_dropout)(alpha)
+
                 if combinator == 'MLP_ATT_b':
                     beta = self.beta
                     res = torch.sum(alpha * activations, axis=-1) + beta
-                    # return res, alpha, beta
-                else:
+
+                else: # combinator in ['MLP_ATT', 'MLP_ATT_neg']
                     res = torch.sum(alpha * activations, axis=-1)
-                # uncomment next if for hard routing
+
+                # hard routing test
                 if (not self.training) and (self.hr_test is not None):
                     alpha_max, idx = torch.max(alpha, dim=2)
                     mask = torch.arange(alpha.size(-1)).reshape(1, 1, -1) == idx.unsqueeze(-1)
                     res = activations[mask].reshape(alpha_max.shape)
+
                     if self.hr_test != 0.0:
+                        # if the computed activation is not larger enough than the others, use a default activation.
                         alpha_mid_range = torch.abs(torch.max(alpha, dim=-1, keepdim=True)[0] -
                                                     torch.min(alpha, dim=-1, keepdim=True)[0])/2
                         res = res.unsqueeze(-1)
+                        # print(torch.max(alpha, dim=-1)[0][0][0], torch.min(alpha, dim=-1)[0][0][0])
                         condition = alpha_mid_range >= self.hr_test
-                        res = torch.where(condition, res, s.unsqueeze(-1)).squeeze(-1)
-            else:  # combinator in ['MLP1', 'MLP2', 'MLP3', 'MLP4', 'MLP5', 'MLPr']
+                        if self.combinator == 'MLP_ATT_neg':
+                            act_by_inspection = torch.zeros(s.shape).unsqueeze(-1)
+                        elif self.act_fn == ['antirelu', 'identity', 'relu', 'sigmoid']:
+                            act_by_inspection = s.unsqueeze(-1)
+                        else:
+                            act_by_inspection = activations[:, :, -1].unsqueeze(-1)  # tanh activation
+                        res = torch.where(condition, res, act_by_inspection).squeeze(-1)
+            else:  # combinator in ['MLP1', 'MLP2', 'MLP3', 'MLP4', 'MLP5', 'MLPr', 'MLP1_neg]
                 # the results will be computed by an MLP with dim (input, output) = (n,1) where n = num. of act_fn
                 res = torch.cat([mod(activations[:, i, :]) for i, mod in enumerate(self.MLP_list)], dim=-1)
 
         else:  # compute only a basic activation function (no MIX)
-            res = act_module[act_fn[0]]
+            res = act_module[act_fn[0]](s)
 
         return res, alpha, beta, params
