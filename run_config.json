@@ -1,15 +1,12 @@
 {
+    "nn_layers": 4,
     "act_fn": [
         [
-            "antirelu",
-            "identity",
-            "relu",
-            "sigmoid"
+            "relu"
         ]
     ],
     "lambda_l1": [
-        0.005,
-        0.00005
+        0.0
     ],
     "normalize": [
         "None"
@@ -17,12 +14,11 @@
     "init": [
         "None"
     ],
-    "dataset":"MNIST",
+    "dataset": ["CIFAR10"],
     "subset":0.2,
-    "epochs": 100,
+    "epochs": 200,
     "random_seed": 1,
-    "combinator": "MLP_ATT_b",
-    "k": 96,
+    "combinator": ["None"],
     "batch_size": 256,
     "alpha_dropout": [0.0]
 }
