@@ -12,7 +12,6 @@ from pathlib import Path
 def train(config):
     print('number of trained parameters', sum(p.numel() for p in config['network'].parameters() if p.requires_grad))
     load_this_model = ''
-    print()
     for epoch in range(1, config['epochs'] + 1):
         dest_path = f'{config["save_dir"]}/weights/{epoch}.pth'
         full_dest_path = Path(str(Path().absolute()) + "/" + dest_path)
@@ -29,7 +28,6 @@ def train(config):
             X_batch = X_batch.to(config['device']).view(X_batch.shape[0], -1)
             y_batch = y_batch.to(config['device'])
             y_pred, _, _, params = config['network'](X_batch)
-            # print(mix_out.shape)
             loss = F.nll_loss(y_pred, y_batch)
             if config['lambda_l1'] != 0:
                 reg_loss = F.l1_loss(params, target=torch.zeros_like(params), reduction='sum')
@@ -110,6 +108,7 @@ if __name__ == '__main__':
     configs = utils.generate_configs(run_configs, hr_test, args.colab)  # list of configurations (=dict) to be trained
     time0 = time()  # total run time
     for i, conf in enumerate(configs):
+        print(torch.cuda.current_device(), torch.cuda.get_device_name(0), torch.cuda.is_available())
         print(f'[{i + 1}/{len(configs)}] {conf["save_dir"]}')
         try:
             utils.reset_seed(conf['random_seed'])

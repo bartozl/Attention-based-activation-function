@@ -2,7 +2,10 @@
     "nn_layers": 4,
     "act_fn": [
         [
-            "relu"
+            "antirelu",
+            "identity",
+            "relu",
+            "sigmoid"
         ]
     ],
     "lambda_l1": [
@@ -15,10 +18,10 @@
         "None"
     ],
     "dataset": ["CIFAR10"],
-    "subset":0.2,
+    "subset": 0.2,
     "epochs": 200,
     "random_seed": 1,
-    "combinator": ["None"],
+    "combinator": ["MLP2"],
     "batch_size": 256,
     "alpha_dropout": [0.0]
 }

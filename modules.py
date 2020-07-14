@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import mixed_activations
 
-
+device = 'cuda' if torch.cuda.is_available() is True else 'cpu'
 class Network(nn.Module):
     def __init__(self, nn_layers, dataset, act, combinator, norm, init, drop, hr_test=None):
         super(Network, self).__init__()
@@ -44,7 +44,7 @@ class Antirelu(nn.Module):
         super(Antirelu, self).__init__()
 
     def forward(self, s):
-        return torch.min(torch.zeros(s.shape), s)
+        return torch.min(torch.zeros(s.shape).to(device), s)
 
 
 class Identity(nn.Module):
