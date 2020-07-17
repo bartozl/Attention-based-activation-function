@@ -119,7 +119,6 @@ def generate_configs(run_config, hr_test, colab):
                                 # if run_config['dataset'] == 'MNIST':
                                 network = Network(run_config['nn_layers'], dataset, act_, combinator,
                                                   norm_, init_, drop_, hr_test).to(device)
-                                print(network)
                                 config = {'save_dir': save_dir,
                                           'data_test': data_test,
                                           'data_train': data_train,

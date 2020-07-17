@@ -84,8 +84,11 @@ def test(config):
 def main(config):
     train_acc_per_epoch, test_acc_per_epoch = [], []  # store accuracies history
 
-    print(f'seed: {torch.initial_seed()}, dataset: {config["dataset"]}, '
-          f'len_train: {config["len_train"]}, len_test:{config["len_test"]}')
+    print(f'\ndevice: {torch.cuda.get_device_name(torch.cuda.current_device())}\n'
+          f'seed: {torch.initial_seed()}\n'
+          f'dataset: {config["dataset"]}\n'
+          f'len_train: {config["len_train"]}\n'
+          f'len_test:{config["len_test"]}\n')
     print('...Training...')
     train(config)
 
@@ -108,7 +111,6 @@ if __name__ == '__main__':
     configs = utils.generate_configs(run_configs, hr_test, args.colab)  # list of configurations (=dict) to be trained
     time0 = time()  # total run time
     for i, conf in enumerate(configs):
-        print(torch.cuda.current_device(), torch.cuda.get_device_name(0), torch.cuda.is_available())
         print(f'[{i + 1}/{len(configs)}] {conf["save_dir"]}')
         try:
             utils.reset_seed(conf['random_seed'])
