@@ -1,5 +1,6 @@
 {
-    "nn_layers": 4,
+    "network_type": 1,
+    "nn_layers": 3,
     "act_fn": [
         [
             "antirelu",
@@ -12,16 +13,20 @@
         0.0
     ],
     "normalize": [
+        "Sigmoid",
+        "Softmax",
         "None"
     ],
     "init": [
-        "None"
+        "normal",
+        "random",
+        "uniform"
     ],
     "dataset": ["CIFAR10"],
-    "subset": 0.2,
-    "epochs": 200,
+    "subset": 1,
+    "epochs": 50,
     "random_seed": 1,
-    "combinator": ["MLP2"],
+    "combinator": ["Linear"],
     "batch_size": 256,
     "alpha_dropout": [0.0]
 }
