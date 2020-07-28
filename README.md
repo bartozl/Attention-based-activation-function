@@ -54,16 +54,53 @@ with
 
 
 
-**Train and test from scratch:**
+
+
+#### Train and test
 
 ```
-python feedforward.py
+python feedforward.py -config config_name.json
 ```
 
-**Plot**
+
+
+#### Plot
 
 ```
 python plot.py -args
 ```
 
 where **args** can be: _activations_, _accuracy_, _table_, _table_max_
+
+
+
+#### run_config.json
+
+| parameter     | type                     | value                                                        | description                                                  |
+| ------------- | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| network_type  | integer                  | [1, 2]                                                       | 1: neurons' number divided by 2 for each new layer<br />2: neuron's number is 300 for each new layer |
+| nn_layers     | integer                  | [2, inf)                                                     | number of linear layers of the network                       |
+| act_fn        | list of lists of strings | ["antirelu", "identity", "relu", "sigmoid", "tanh"]          | basic activations function to combine                        |
+| lambda_l1     | list of floats           | (0.0, 0.00000005)                                            | l1 regularization scaling factor                             |
+| normalize     | list of strings          | ["None", "Sigmoid", "Softmax"]                               | alpha normalization (only for Linear combinator)             |
+| init          | list of strings          | ["None", "random", "uniform", "normal"]                      | alpha initialization (only for Linear combinator)            |
+| dataset       | list of strings          | ["MNIST", "CIFAR10"]                                         | datasets available                                           |
+| subset        | float                    | (0, 1)                                                       | portion of dataset used                                      |
+| epochs        | integer                  | (0, inf)                                                     | number of epochs for training and test                       |
+| random_seed   | integer                  | (0, inf)                                                     | allows reproducibility                                       |
+| combinator    | list of strings          | ["None", "Linear", "MLP1", "MLP2", "MLP_ATT",  "MLP_ATT_neg"] | available combinators                                        |
+| batch_size    | integer                  | (0, inf)                                                     | batch size for training/test                                 |
+| alpha_dropout | list of floats           | (0, 1)                                                       | alpha dropout for MLP_ATT combinator                         |
+
+
+
+#### Brief code description
+
+- **feedforward.py** is the starting point, it contains the *main*, the *train* and the *test* functions
+- **utils.py** contains all the auxiliary functions, both for computations and plotting. The most relevant functions for computation is:
+  - *generate_configs*: based on run_config.json, create an array of configurations to run
+- **mixed_activations.py** contains the MIX module (i.e. the core of the project)
+- **modules.py** contains auxiliary modules, such as:
+  - *Network*: the neural network used for the experiments
+  - *MLP1*, *MLP2*, *MLP_ATT*, .... : all small networks needed in the MIX module
+- **plot.py** contains all plotting functions
