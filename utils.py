@@ -26,35 +26,30 @@ MLP_neg = ['MLP1_neg', 'MLP_ATT_neg']
 # ======= EXECUTION AUXILIARY FUNCTIONS ======= #
 # ============================================= #
 
-
-def create_save_dir(dataset, combinator, init, normalize, act_list, lambda_l1, drop, hr_test):
+# create the directory to store the experiments
+def create_save_dir(dataset, combinator, init, normalize, act_list, lambda_l1, drop, hr_test, config_name):
     acts = '_'.join(act_list)
     if combinator == 'Linear':
-        save_dir = f'../experiments/{dataset}/{combinator}' \
-                   f'/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
+        save_dir = f'../experiments/{dataset}/{combinator}/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
     elif combinator in MLP_LIST:
-        save_dir = f'../experiments/{dataset}/MLP/{combinator}' \
-                   f'/init_None/norm_{normalize}/{acts}/{lambda_l1}/'
+        save_dir = f'../experiments/{dataset}/MLP/{combinator}/init_None/norm_{normalize}/{acts}/{lambda_l1}/'
     elif combinator in ATT_LIST:
-        save_dir = f'../experiments/{dataset}/ATT/{combinator}' \
-                   f'/init_None/norm_{normalize}/drop_{drop}/{acts}/{lambda_l1}/'
+        save_dir = f'../experiments/{dataset}/ATT/{combinator}/init_None/norm_{normalize}/drop_{drop}/{acts}/{lambda_l1}/'
     elif combinator == 'None':
-        save_dir = f'../experiments/{dataset}/{combinator}' \
-                   f'/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
+        save_dir = f'../experiments/{dataset}/{combinator}/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
     else:
         print('ERROR: unknown combinator')
         sys.exit(0)
     if Path(f'{save_dir}results.json').exists():
         if hr_test is not None:
             return save_dir
-    #    else:
-    #        return False
     Path(f'{save_dir}weights/').mkdir(parents=True, exist_ok=True)
     Path(f'{save_dir}plot/').mkdir(parents=True, exist_ok=True)
-    shutil.copy2('run_config.json', save_dir)
+    shutil.copy2(config_name, save_dir)
     return save_dir
 
 
+#  load datasets (supported dataset: CIFAR10, MNIST)
 def load_dataset(dataset_name, subset, batch_size, colab):
     if colab:
         data_path = '~/../content/'
@@ -65,12 +60,10 @@ def load_dataset(dataset_name, subset, batch_size, colab):
         transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,)), ])
         train_dataset = datasets.MNIST(data_path, download=True, train=True, transform=transform)
         test_dataset = datasets.MNIST(data_path, download=True, train=False, transform=transform)
-
     elif dataset_name == 'CIFAR10':
         transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
         train_dataset = datasets.CIFAR10(data_path, download=True, train=True, transform=transform)
         test_dataset = datasets.CIFAR10(data_path, download=True, train=False, transform=transform)
-
     else:
         print('unknown dataset')
         sys.exit(0)
@@ -86,18 +79,18 @@ def load_dataset(dataset_name, subset, batch_size, colab):
 def load_run_config(run_config):
     with open(run_config, 'r') as f:
         run_config = json.load(f)
-    run_config['run_name'] = f"{run_config['combinator']}"
-    if run_config['combinator'] == 'Kwinners':
-        run_config['run_name'] += f"{run_config['k']}"
     return run_config
 
+
+# allows reproducibility
 def reset_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
     random.seed(seed)
 
 
-def generate_configs(run_config, hr_test, colab):
+# based on run_config, create a list of configuration to train
+def generate_configs(run_config, hr_test, colab, config_name):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     savedirs, configs = [], []
     for norm_ in run_config['normalize']:
@@ -112,13 +105,15 @@ def generate_configs(run_config, hr_test, colab):
                                                                                           run_config['batch_size'],
                                                                                           colab)
                                 reset_seed(run_config['random_seed'])
-                                save_dir = create_save_dir(dataset, combinator, init_, norm_, act_, lamb_, drop_, hr_test)
+                                save_dir = create_save_dir(dataset, combinator, init_, norm_, act_,
+                                                           lamb_, drop_, hr_test, config_name)
                                 if (save_dir is False) or (save_dir in savedirs):
                                     continue
                                 savedirs.append(save_dir)
                                 # if run_config['dataset'] == 'MNIST':
-                                network = Network(run_config['nn_layers'], dataset, act_, combinator,
-                                                  norm_, init_, drop_, hr_test).to(device)
+                                network = Network(run_config['network_type'], run_config['nn_layers'], dataset, act_,
+                                                  combinator, norm_, init_, drop_, hr_test).to(device)
+                                print(network.layers_list)
                                 config = {'save_dir': save_dir,
                                           'data_test': data_test,
                                           'data_train': data_train,
@@ -129,12 +124,13 @@ def generate_configs(run_config, hr_test, colab):
                                           'init': init_,
                                           'lambda_l1': lamb_,
                                           'network': network,
+                                          'network_type': run_config['network_type'],
                                           'nn_layers': run_config['nn_layers'],
                                           'optimizer': torch.optim.Adam(network.parameters(), lr=1e-3, weight_decay=1e-4),
                                           'device': device,
                                           'save_every': 1,
                                           'combinator': combinator,
-                                          'run_name': run_config['run_name'],
+                                          'run_name': combinator,  # TODO select a proper run_name
                                           'random_seed': run_config['random_seed'],
                                           'batch_size': run_config['batch_size'],
                                           'dataset': dataset,
@@ -145,6 +141,7 @@ def generate_configs(run_config, hr_test, colab):
     return configs
 
 
+# every x epochs, the train model is saved
 def save_state(config, dest_path, acc, train_=True):
     if train_:
         len_dataset = config['len_train']
@@ -156,6 +153,7 @@ def save_state(config, dest_path, acc, train_=True):
     return new_acc
 
 
+# save a results.json file with all the experiments data
 def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
 
     first_save = False
@@ -175,12 +173,16 @@ def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
                    'normalize': config['normalize'],
                    'combinator': config['combinator'],
                    'run_name': config['run_name'],
+                   'network_type': config['network_type'],
                    'nn_layers': config['nn_layers'],
                    'dataset': config['dataset'],
                    'random_seed': config['random_seed'],
                    'batch_size': config['batch_size'],
                    'init': config['init'],
-                   'alpha_dropout': config['alpha_dropout']
+                   'alpha_dropout': config['alpha_dropout'],
+                   'parameters': sum(p.numel() for p in config['network'].parameters() if p.requires_grad),
+                   'len_train': config['len_train'],
+                   'len_test': config['len_test']
                    }
     else:
         if hr_test is None:
@@ -206,12 +208,20 @@ def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
 # ======================================== #
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-neurons = 128
-n_samples = 500
-input_ = torch.Tensor(np.linspace(-2, 2, n_samples).astype(np.float32)).repeat(neurons, 1).to(device)
+
+def create_input(results):
+    in_neurons = 784 if results['dataset'] == 'MNIST' else 3072
+    if results['network_type'] == 1 or results['combinator'] is None:
+        neurons = int(in_neurons / 2 ** (results['nn_layers'] - 1))
+    else:
+        neurons = in_neurons//2
+    n_samples = 500
+    input_ = torch.Tensor(np.linspace(-2, 2, n_samples).astype(np.float32)).repeat(neurons, 1).to(device)
+    return input_, neurons, n_samples
 
 
-def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, nx=5, ny=4, sizex=32, sizey=18):
+def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, results, nx=5, ny=4, sizex=32, sizey=18):
+    input_, neurons, _ = create_input(results)
     tick_fontsize = int(100/nx)
     legend_fontsize = int(120/nx)
     lw = int(20/nx)
@@ -257,8 +267,8 @@ def grid_accuracy(results, label, ax, i, first=False, color='green'):
         ax[1][i].set_xlabel('epochs', fontsize=label_fontsize)
         ax[0][i].set_ylabel('accuracy [%]', fontsize=label_fontsize)
         ax[1][i].set_ylabel('accuracy [%]', fontsize=label_fontsize)
-        ax[0][i].set_ylim(bottom=80, top=102)
-        ax[1][i].set_ylim(bottom=80, top=98)
+        # ax[0][i].set_ylim(bottom=80, top=102)
+        # ax[1][i].set_ylim(bottom=80, top=98)
         plt.setp(ax[0][i].get_xticklabels(), fontsize=tick_fontsize)
         plt.setp(ax[1][i].get_xticklabels(), fontsize=tick_fontsize)
         plt.setp(ax[0][i].get_yticklabels(), fontsize=tick_fontsize)
@@ -282,11 +292,14 @@ def grid_accuracy(results, label, ax, i, first=False, color='green'):
 # TODO delete results['epoch'] key
 def compute_activations(results, epoch, path):
     state_dict = torch.load(f'{path}/weights/{epoch}.pth')  # load the model of the whole original network
-    state_dict_filt = {'.'.join(k.split('.')[1:]): v for k, v in state_dict.items()}  # adjust the name of the parameters
-    # print(state_dict)
-    del state_dict_filt['weight']  # delete the parameter of the original network linear layers in order to keep only\
-    del state_dict_filt['bias']  # the MIX layer parameters
-    mix = MIX(results['act_fn'], results['combinator'], 128, results['normalize'], results['init'])
+    # state_dict_filt = {'.'.join(k.split('.')[2:]): v for k, v in state_dict.items() if ''}  # adjust the name of the parameters
+    state_dict_filt = {}
+    for k, v in state_dict.items():
+        if k[0:3] == 'mix':
+            state_dict_filt[k[4:]] = v
+
+    input_, neurons, _ = create_input(results)
+    mix = MIX(results['act_fn'], results['combinator'], neurons, results['normalize'], results['init']).to(device)
     mix.eval()  # evaluation mode
     mix.load_state_dict(state_dict_filt)  # load the MIX parameters
     # print(results["combinator"], 'output.shape', output.shape)
@@ -335,22 +348,21 @@ def create_path_dict(save_path):
     return path_dict
 
 
+#compute distance between first and last epoch's activation function
 def compute_distance(results, path):
+    input_, neurons, n_samples = create_input(results)
     if results['combinator'] in MLP_LIST + ATT_LIST + MLP_neg + ['Linear']:
         o1, _, _, _ = compute_activations(results, '1', path)
-        o2, _, _, _ = compute_activations(results, '200', path)
+        o2, _, _, _ = compute_activations(results, '50', path)
     elif results['combinator'] == 'Kwinners':
         return 0, neurons - results['k']
     else:
         return 0, 0
     # print(results['combinator'], o1.shape, o2.shape, torch.norm((o1 - o2), dim=-1).shape)
     distance = torch.mean((torch.norm((o1 - o2), dim=-1))).item()
-    # zeroed_n = torch.sum(
-    #    torch.where(torch.norm(o2, dim=-1) / n_samples <= 0.001, torch.tensor(1), torch.tensor(0))).item()
-    # print((torch.sum(torch.abs(o2), dim=-1) / (n_samples * 128)))
     zeroed_n = torch.sum(
         torch.where((torch.sum(torch.abs(o2), dim=-1) / (n_samples * 128)) <= 0.0001,
-                    torch.tensor(1), torch.tensor(0))).item()
+                    torch.tensor(1).to(device), torch.tensor(0).to(device))).item()
     return distance, zeroed_n
 
 
@@ -502,8 +514,9 @@ def create_table(values, col_labels, act, s, max_=False, att=0):
         subset_to_color = subset_to_color[1:]
     if att != 0:
         subset_to_color = ['combinator']
+    # TODO: set back to col_labels[-10:] when epochs are 200
     styled_table = table.style.apply(apply_color, subset=subset_to_color, axis=0). \
-        apply(highlight_max, axis=None, subset=col_labels[-10:], mode=s). \
+        apply(highlight_max, axis=None, subset=col_labels[-3:], mode=s). \
         apply(highlight_max, axis=None, subset=['min acc'], mode=s). \
         apply(highlight_max, axis=None, subset=['max acc'], mode=s). \
         hide_index(). \

@@ -108,10 +108,10 @@ if __name__ == '__main__':
     hr_test = args.hr_test
     # assert hr_test in [None, "1", "2"], "hr_test must be 1, 2 or None!!!"
     run_configs = utils.load_run_config(args.config)
-    configs = utils.generate_configs(run_configs, hr_test, args.colab)  # list of configurations (=dict) to be trained
+    configs = utils.generate_configs(run_configs, hr_test, args.colab, args.config)  # list of configurations (=dict) to be trained
     time0 = time()  # total run time
     for i, conf in enumerate(configs):
-        print(f'[{i + 1}/{len(configs)}] {conf["save_dir"]}')
+        print(f'\n[{i + 1}/{len(configs)}] {conf["save_dir"]}')
         try:
             utils.reset_seed(conf['random_seed'])
             main(conf)

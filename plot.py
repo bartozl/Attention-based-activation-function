@@ -48,19 +48,20 @@ def plot_activations(path_dict):
                     continue
                 if int(epoch) == 1:  # store the first epoch activation
                     fixed_output = output
-                utils.grid_activations(dest_path, output, fixed_output, epoch, act, alpha, bias)
+                utils.grid_activations(dest_path, output, fixed_output, epoch, act, alpha, bias, results)
                 if int(epoch) == 200:
-                    utils.grid_activations(dest_path, output, fixed_output, epoch+'_tot', act, alpha, bias, nx=11, ny=11)
+                    utils.grid_activations(dest_path, output, fixed_output, epoch+'_tot', act, alpha, bias, results, nx=11, ny=11)
+
 
 def plot_accuracy(path_dict, dest_path):
     path_dict_ = path_dict.copy()
-    pairs_to_compare = [['MLP2', 'MLP1']]  # it must be a list of lists!
+    pairs_to_compare = [['MLP2', 'MLP2']]  # it must be a list of lists!
     for relu_path in path_dict_['relu']:
         with open(relu_path + '/results.json', 'r') as f:
             results_relu = json.load(f)
         if results_relu['batch_size'] == 256:
             break
-    del path_dict_['relu'], path_dict_['sigmoid'], path_dict_['antirelu'], path_dict_['tanh']
+    del path_dict_['relu']  # , path_dict_['sigmoid'], path_dict_['antirelu'], path_dict_['tanh']
     for pair in pairs_to_compare:
         for act in path_dict_.keys():
             Path(f'{dest_path}/{act}/').mkdir(parents=True, exist_ok=True)
@@ -105,9 +106,6 @@ def plot_table(path_dict, save_path):
                     values_train.append(temp_train)
                     values_test.append(temp_test)
 
-
-
-
         # create table
         table_train = utils.create_table(values_train, col_labels, act, 'train')
         table_test = utils.create_table(values_test, col_labels, act, 'test')
@@ -126,7 +124,7 @@ def plot_table_max(path_dict, save_path, limit):
             if i == 0:
                 col_labels = utils.fill_col_labels(results, max_=True, att=2)
             temp_train, temp_test = utils.fill_row_values(results, path, act, max_=True, att=2)
-            print(temp_test[9])
+            # print(temp_test[9])
             if True not in np.where(temp_test[9] >= limit, True, False):
                 continue
             values_train.append(temp_train)
@@ -178,15 +176,20 @@ if __name__ == '__main__':
     parser.add_argument('-accuracy', action='store_true')
     parser.add_argument('-activations', action='store_true')
     parser.add_argument('--run_name', type=str)
+    parser.add_argument('--dataset', type=str, required=True, choices=['MNIST', 'CIFAR10'])
     args = parser.parse_args()
     # utils.fix_json()
     np.random.seed(1)  # allows reproducibility
-    source_path = '../experiments/MNIST/'
-    imgs_path = '../experiments/MNIST/imgs/'
+
+    dataset = args.dataset
+    source_path = f'../experiments/{dataset}/'
+    imgs_path = f'{source_path}imgs/'
+
+    print(source_path, imgs_path)
 
     path_dict = utils.create_path_dict(source_path)
     # print(path_dict.keys())
-    plot_it = ['None', 'MLP_ATT','MLP_ATT_neg', 'MLP1', 'MLP2', 'Linear', 'MLP_ATT_b']
+    plot_it = ['None', 'MLP_ATT', 'MLP_ATT_neg', 'MLP1', 'MLP2', 'Linear', 'MLP_ATT_b']
 
     if args.table:
         print('plotting table...')
@@ -197,8 +200,9 @@ if __name__ == '__main__':
         plot_table_attention(path_dict, imgs_path)
 
     if args.table_max:
+        max_value = 0.55 if dataset == 'CIFAR10' else 0.982
         print('plotting table max...')
-        plot_table_max(path_dict, imgs_path, 0.956)
+        plot_table_max(path_dict, imgs_path, max_value)
 
     if args.accuracy:
         print('plotting accuracy...')
