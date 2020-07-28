@@ -3,38 +3,40 @@ import torch.nn as nn
 import mixed_activations
 
 device = 'cuda' if torch.cuda.is_available() is True else 'cpu'
+
+
 class Network(nn.Module):
-    def __init__(self, nn_layers, dataset, act, combinator, norm, init, drop, hr_test=None):
+    def __init__(self, network, nn_layers, dataset, act, combinator, norm, init, drop, hr_test=None):
         super(Network, self).__init__()
 
-        if dataset == 'MNIST':
-            in_neurons = 784
-        else:  # dataset == 'CIFAR10'
-            in_neurons = 3072
-
-        self.nn_layers = nn_layers
-        self.mix = mixed_activations.MIX(act, combinator, neurons=in_neurons//2**(nn_layers-1), normalize=norm,
-                                          init=init, alpha_dropout=drop, hr_test=hr_test)
+        out_neurons = 784 if dataset == 'MNIST' else 3072
+        n_classes = 10 if dataset in ['MNIST', 'CIFAR10'] else None
         self.layers_list = nn.ModuleList()
+        self.act_list = nn.ModuleList()
+        self.nn_layers = nn_layers
 
-        for layer in range(nn_layers):
-            if layer == nn_layers-1:
-                self.layers_list.append(nn.Linear(in_neurons, 10))
+        for layer in range(self.nn_layers):
+            if network == 1:  # in-out neurons' number is divided by 2 for each new linear layer
+                in_neurons = out_neurons
+                out_neurons = in_neurons//2
+            else:  # in-out neurons' number is 300 for each linear layer
+                in_neurons = out_neurons
+                out_neurons = 300
+            if layer == self.nn_layers-1:
+                self.layers_list.append(nn.Linear(in_neurons, n_classes))
             else:
-                self.layers_list.append(nn.Linear(in_neurons, in_neurons//2))
-            in_neurons = in_neurons//2
+                self.layers_list.append(nn.Linear(in_neurons, out_neurons))
+                self.act_list.append(mixed_activations.MIX(act, combinator, out_neurons, normalize=norm,
+                                                           init=init, alpha_dropout=drop, hr_test=hr_test))
 
         self.out = nn.LogSoftmax(dim=1)
 
     def forward(self, s):
         l_out, act_out = None, s
         for i in range(len(self.layers_list)):
-            if i < self.nn_layers - 1:  # use relu for all layers except the last one
-                l_out = self.layers_list[i](act_out)
-                act_out = torch.relu(l_out)
-            else:
-                act_out, _, _, _ = self.mix(l_out)
-
+            l_out = self.layers_list[i](act_out)
+            if i < self.nn_layers - 1:
+                act_out = self.act_list[i](l_out)[0]
         out = self.out(l_out)
         return out, None, None, None
 
@@ -45,6 +47,7 @@ class Antirelu(nn.Module):
 
     def forward(self, s):
         return torch.min(torch.zeros(s.shape).to(device), s)
+        # return torch.min(torch.zeros(s.shape), s)
 
 
 class Identity(nn.Module):
