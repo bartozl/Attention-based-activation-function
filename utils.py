@@ -211,10 +211,10 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def create_input(results):
     in_neurons = 784 if results['dataset'] == 'MNIST' else 3072
-    if results['network_type'] == 1 or results['combinator'] is None:
+    if results['network_type'] == 1:  # or results['combinator'] is None:
         neurons = int(in_neurons / 2 ** (results['nn_layers'] - 1))
     else:
-        neurons = in_neurons//2
+        neurons = 300
     n_samples = 500
     input_ = torch.Tensor(np.linspace(-2, 2, n_samples).astype(np.float32)).repeat(neurons, 1).to(device)
     return input_, neurons, n_samples
@@ -289,14 +289,14 @@ def grid_accuracy(results, label, ax, i, first=False, color='green'):
         if (j + 1) % 20 != 0:
             label_ax.set_visible(False)
 
-# TODO delete results['epoch'] key
+
 def compute_activations(results, epoch, path):
     state_dict = torch.load(f'{path}/weights/{epoch}.pth')  # load the model of the whole original network
     # state_dict_filt = {'.'.join(k.split('.')[2:]): v for k, v in state_dict.items() if ''}  # adjust the name of the parameters
     state_dict_filt = {}
     for k, v in state_dict.items():
-        if k[0:3] == 'mix':
-            state_dict_filt[k[4:]] = v
+        if k[0:10] == 'act_list.0':
+            state_dict_filt[k[11:]] = v
 
     input_, neurons, _ = create_input(results)
     mix = MIX(results['act_fn'], results['combinator'], neurons, results['normalize'], results['init']).to(device)
