@@ -41,7 +41,7 @@ def plot_activations(path_dict):
             for epoch in results['train_acc'].keys():
                 if int(epoch) % n_epochs != 0 and int(epoch) != 1:  # plot every 20 epochs (first epoch included)
                     continue
-                if results['combinator'] in MLP_LIST + MLP_neg + ATT_LIST + ['Linear']:
+                if results['combinator'] in MLP_LIST + MLP_neg + ATT_LIST + ['Linear'] + ['None']:
                     output, alpha, bias, _ = utils.compute_activations(results, epoch, path)
                 else:
                     print(f"no plot method available for {results['combinator']} combinator...")
@@ -55,7 +55,7 @@ def plot_activations(path_dict):
 
 def plot_accuracy(path_dict, dest_path):
     path_dict_ = path_dict.copy()
-    pairs_to_compare = [['MLP2', 'MLP2']]  # it must be a list of lists!
+    pairs_to_compare = [['MLP1', 'MLP_ATT_neg']]  # it must be a list of lists!
     for relu_path in path_dict_['relu']:
         with open(relu_path + '/results.json', 'r') as f:
             results_relu = json.load(f)
@@ -125,7 +125,7 @@ def plot_table_max(path_dict, save_path, limit):
                 col_labels = utils.fill_col_labels(results, max_=True, att=2)
             temp_train, temp_test = utils.fill_row_values(results, path, act, max_=True, att=2)
             # print(temp_test[9])
-            if True not in np.where(temp_test[9] >= limit, True, False):
+            if True not in np.where(temp_test[10] >= limit, True, False):
                 continue
             values_train.append(temp_train)
             values_test.append(temp_test)
@@ -200,7 +200,7 @@ if __name__ == '__main__':
         plot_table_attention(path_dict, imgs_path)
 
     if args.table_max:
-        max_value = 0.55 if dataset == 'CIFAR10' else 0.982
+        max_value = 0.54 if dataset == 'CIFAR10' else 0.982
         print('plotting table max...')
         plot_table_max(path_dict, imgs_path, max_value)
 

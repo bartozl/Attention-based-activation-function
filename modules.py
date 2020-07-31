@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+
 import mixed_activations
 
 device = 'cuda' if torch.cuda.is_available() is True else 'cpu'
@@ -18,25 +19,59 @@ class Network(nn.Module):
         for layer in range(self.nn_layers):
             if network == 1:  # in-out neurons' number is divided by 2 for each new linear layer
                 in_neurons = out_neurons
-                out_neurons = in_neurons//2
-            else:  # in-out neurons' number is 300 for each linear layer
+                out_neurons = in_neurons // 2
+            elif network == 2:  # in-out neurons' number is 300 for each linear layer
                 in_neurons = out_neurons
                 out_neurons = 300
-            if layer == self.nn_layers-1:
+            if layer == self.nn_layers - 1:
                 self.layers_list.append(nn.Linear(in_neurons, n_classes))
             else:
                 self.layers_list.append(nn.Linear(in_neurons, out_neurons))
-                self.act_list.append(mixed_activations.MIX(act, combinator, out_neurons, normalize=norm,
-                                                           init=init, alpha_dropout=drop, hr_test=hr_test))
+                self.layers_list.append(mixed_activations.MIX(act, combinator, out_neurons, normalize=norm, init=init,
+                                                              alpha_dropout=drop, hr_test=hr_test))
+        self.out = nn.LogSoftmax(dim=1)
+
+    def forward(self, s):
+        l_out = s
+        for i, layer in enumerate(self.layers_list):
+            if i % 2 != 0:  # activation layer
+                l_out = layer(l_out)[0]
+            else:
+                l_out = layer(l_out)
+        out = self.out(l_out)
+        return out, None, None, None
+
+
+class Network_jit(nn.Module):
+    def __init__(self, network, nn_layers, dataset, act, combinator, norm, init, drop, hr_test=None):
+        super(Network_jit, self).__init__()
+
+        out_neurons = 784 if dataset == 'MNIST' else 3072
+        n_classes = 10 if dataset in ['MNIST', 'CIFAR10'] else None
+        self.layers_list = nn.ModuleList()
+        self.act_list = nn.ModuleList()
+        self.nn_layers = nn_layers
+
+        for layer in range(self.nn_layers):
+            if network == 1:  # in-out neurons' number is divided by 2 for each new linear layer
+                in_neurons = out_neurons
+                out_neurons = in_neurons // 2
+            elif network == 2:  # in-out neurons' number is 300 for each linear layer
+                in_neurons = out_neurons
+                out_neurons = 300
+            if layer == self.nn_layers - 1:
+                self.layers_list.append(nn.Linear(in_neurons, n_classes))
+            else:
+                self.layers_list.append(nn.Linear(in_neurons, out_neurons))
+                self.layers_list.append(mixed_activations.MIX_jit(act, combinator, out_neurons, normalize=norm,
+                                                                  init=init, alpha_dropout=drop, hr_test=hr_test))
 
         self.out = nn.LogSoftmax(dim=1)
 
     def forward(self, s):
-        l_out, act_out = None, s
-        for i in range(len(self.layers_list)):
-            l_out = self.layers_list[i](act_out)
-            if i < self.nn_layers - 1:
-                act_out = self.act_list[i](l_out)[0]
+        l_out = s
+        for layer in self.layers_list:
+            l_out = layer(l_out)
         out = self.out(l_out)
         return out, None, None, None
 
@@ -46,7 +81,7 @@ class Antirelu(nn.Module):
         super(Antirelu, self).__init__()
 
     def forward(self, s):
-        return torch.min(torch.zeros(s.shape).to(device), s)
+        return torch.min(torch.zeros(s.shape, device=s.device), s)
         # return torch.min(torch.zeros(s.shape), s)
 
 
@@ -108,7 +143,7 @@ class MLP(nn.Module):
                                            nn.Dropout(0.2),
                                            nn.Linear(3, 4),
                                            )
-            #4*3+3 + 3*4 = 12+3+12
+            # 4*3+3 + 3*4 = 12+3+12
         if combinator in ['MLP_ATT_neg']:  # 105738 parameters
             self.mlp = torch.nn.Sequential(nn.Linear(8, 5),
                                            nn.ReLU(),

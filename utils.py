@@ -1,21 +1,23 @@
 import json
-from pathlib import Path
-import sys
+import os
+import random
 import shutil
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import SubsetRandomSampler
+import sys
+from collections import defaultdict
+from pathlib import Path
+
+import imgkit
+import numpy as np
+import pandas as pd
+import seaborn as sns
 import torch
 from matplotlib import pyplot as plt
-from collections import defaultdict
-import os
-import seaborn as sns
-import imgkit
-import pandas as pd
-import numpy as np
-import random
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
+from torchvision import datasets, transforms
+
 from mixed_activations import MIX
-from modules import Network
+from modules import Network, Network_jit
 
 MLP_LIST = ['MLP1', 'MLP1_neg', 'MLP2', 'MLP3', 'MLP4', 'MLP5', 'MLPr']
 ATT_LIST = ['MLP_ATT', 'MLP_ATT_neg', 'MLP_ATT_b']
@@ -90,7 +92,7 @@ def reset_seed(seed):
 
 
 # based on run_config, create a list of configuration to train
-def generate_configs(run_config, hr_test, colab, config_name):
+def generate_configs(run_config, hr_test, colab, config_name, jit):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     savedirs, configs = [], []
     for norm_ in run_config['normalize']:
@@ -110,9 +112,14 @@ def generate_configs(run_config, hr_test, colab, config_name):
                                 if (save_dir is False) or (save_dir in savedirs):
                                     continue
                                 savedirs.append(save_dir)
-                                # if run_config['dataset'] == 'MNIST':
-                                network = Network(run_config['network_type'], run_config['nn_layers'], dataset, act_,
-                                                  combinator, norm_, init_, drop_, hr_test).to(device)
+                                if jit:
+                                    network = torch.jit.script(
+                                        Network_jit(run_config['network_type'], run_config['nn_layers'], dataset, act_,
+                                                    combinator, norm_, init_, drop_, hr_test).to(device))
+                                else:
+                                    network = Network(run_config['network_type'], run_config['nn_layers'], dataset,
+                                                      act_,
+                                                      combinator, norm_, init_, drop_, hr_test).to(device)
                                 print(network.layers_list)
                                 config = {'save_dir': save_dir,
                                           'data_test': data_test,
@@ -126,7 +133,8 @@ def generate_configs(run_config, hr_test, colab, config_name):
                                           'network': network,
                                           'network_type': run_config['network_type'],
                                           'nn_layers': run_config['nn_layers'],
-                                          'optimizer': torch.optim.Adam(network.parameters(), lr=1e-3, weight_decay=1e-4),
+                                          'optimizer': torch.optim.Adam(network.parameters(), lr=1e-3,
+                                                                        weight_decay=1e-4),
                                           'device': device,
                                           'save_every': 1,
                                           'combinator': combinator,
@@ -135,7 +143,8 @@ def generate_configs(run_config, hr_test, colab, config_name):
                                           'batch_size': run_config['batch_size'],
                                           'dataset': dataset,
                                           'epochs': run_config['epochs'],
-                                          'alpha_dropout': drop_ if run_config['combinator'] in ATT_LIST else None
+                                          'alpha_dropout': drop_ if run_config['combinator'] in ATT_LIST else None,
+                                          'jit': jit
                                           }
                                 configs.append(config)
     return configs
@@ -155,7 +164,6 @@ def save_state(config, dest_path, acc, train_=True):
 
 # save a results.json file with all the experiments data
 def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
-
     first_save = False
     try:
         with open(f'{config["save_dir"]}results.json', 'r') as f:
@@ -209,6 +217,7 @@ def save_results(config, train_acc, test_acc, epoch, loss=None, hr_test=None):
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
+
 def create_input(results):
     in_neurons = 784 if results['dataset'] == 'MNIST' else 3072
     if results['network_type'] == 1:  # or results['combinator'] is None:
@@ -222,15 +231,16 @@ def create_input(results):
 
 def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, results, nx=5, ny=4, sizex=32, sizey=18):
     input_, neurons, _ = create_input(results)
-    tick_fontsize = int(100/nx)
-    legend_fontsize = int(120/nx)
-    lw = int(20/nx)
+    tick_fontsize = int(100 / nx)
+    legend_fontsize = int(120 / nx)
+    lw = int(20 / nx)
     fig, ax = plt.subplots(nx, ny)
     fig.set_size_inches(sizex, sizey)
     fig.tight_layout(pad=4)
     idx = 0
-    mean_max = torch.mean(torch.max(alpha, dim=-1)[0]).item()
-    print(f'{dest_path}/{name}  - {mean_max}')
+    if alpha is not None:
+        mean_max = torch.mean(torch.max(alpha, dim=-1)[0]).item()
+        print(f'{dest_path}/{name}  - {mean_max}')
     for i in range(nx):
         for j in range(ny):
             plt.setp(ax[i][j].get_xticklabels(), fontsize=tick_fontsize)
@@ -243,11 +253,15 @@ def grid_activations(dest_path, out, fixed_out, name, act, alpha, bias, results,
             if alpha is None:
                 alpha_title = ""
             else:
-                alpha_title = "".join(["", "+"][float(alpha[idx][i]) > 0] + str(np.round(float(alpha[idx][i]), 2))+a[0].upper() for i, a in enumerate(act.split("_")))
-            b = f'{["","+"][bias[idx]>0]}{bias[idx]:.2f}' if bias is not None else ""
+                alpha_title = "".join(
+                    ["", "+"][float(alpha[idx][i]) > 0] + str(np.round(float(alpha[idx][i]), 2)) + a[0].upper() for i, a
+                    in enumerate(act.split("_")))
+            b = f'{["", "+"][bias[idx] > 0]}{bias[idx]:.2f}' if bias is not None else ""
             ax[i][j].set_title(f'[{idx}] {alpha_title}{b}', fontsize=legend_fontsize)
-            ax[i][j].plot(input_[idx].detach().numpy(), out[idx].detach().numpy(), color='green', lw=lw, alpha=0.8)
-            ax[i][j].plot(input_[idx].detach().numpy(), fixed_out[idx].detach().numpy(), color='red', ls='--', lw=lw, alpha=0.8)
+            ax[i][j].plot(input_[idx].detach().cpu().numpy(), out[idx].detach().cpu().numpy(), color='green', lw=lw,
+                          alpha=0.8)
+            ax[i][j].plot(input_[idx].detach().cpu().numpy(), fixed_out[idx].detach().cpu().numpy(), color='red',
+                          ls='--', lw=lw, alpha=0.8)
             idx += 1
     plt.savefig(f'{dest_path}/{name}.png', bbox_inches='tight', dpi=200)
     plt.close()
@@ -295,9 +309,10 @@ def compute_activations(results, epoch, path):
     # state_dict_filt = {'.'.join(k.split('.')[2:]): v for k, v in state_dict.items() if ''}  # adjust the name of the parameters
     state_dict_filt = {}
     for k, v in state_dict.items():
-        if k[0:10] == 'act_list.0':
-            state_dict_filt[k[11:]] = v
-
+        print(k)
+        # if k[0:11] == 'layers_list':
+        if k.split('.')[2] == 'MLP_list':
+            state_dict_filt[k[14:]] = v
     input_, neurons, _ = create_input(results)
     mix = MIX(results['act_fn'], results['combinator'], neurons, results['normalize'], results['init']).to(device)
     mix.eval()  # evaluation mode
@@ -311,6 +326,7 @@ def compute_activations(results, epoch, path):
         alpha = torch.sum(alpha, dim=1) / alpha.shape[1]
 
     return output.T, alpha, bias, params
+
 
 def create_path_dict(save_path):
     """
@@ -348,7 +364,7 @@ def create_path_dict(save_path):
     return path_dict
 
 
-#compute distance between first and last epoch's activation function
+# compute distance between first and last epoch's activation function
 def compute_distance(results, path):
     input_, neurons, n_samples = create_input(results)
     if results['combinator'] in MLP_LIST + ATT_LIST + MLP_neg + ['Linear']:
@@ -375,6 +391,7 @@ def fill_col_labels(results, max_=False, att=False, n_epochs=20):
     col_labels.append('drop')
     col_labels.append('normaliz')
     col_labels.append('lambda')
+    col_labels.append('params')
     if att == 0:
         col_labels.append('init')
     elif att == 1:
@@ -402,6 +419,7 @@ def fill_row_values(results, path, act='', max_=False, att=0, hr=-1, n_epochs=20
     values_train_temp.append(alpha_dropout if alpha_dropout != 'None' else '-')
     values_train_temp.append(results['normalize'] if results['normalize'] != 'None' else '-')
     values_train_temp.append(results['lambda_l1'])
+    values_train_temp.append(results['parameters'])
     if att == 0:
         values_train_temp.append(results['init'] if results['init'] != 'None' else '-')
     elif att == 1:
@@ -509,6 +527,7 @@ def create_table(values, col_labels, act, s, max_=False, att=0):
     sort_by = ['combinator', 'normaliz', 'drop'] if att != 0 else ['combinator', 'normaliz', 'init', 'drop']
     table = pd.DataFrame(values, columns=col_labels).sort_values(by=sort_by)
     cm_green = sns.light_palette("green", as_cmap=True)
+    cm_green_inv = sns.light_palette("green", n_colors=10, reverse=True, as_cmap=True)
     subset_to_color = ['act', 'combinator', 'normaliz', 'init', 'drop']
     if max_ is False:
         subset_to_color = subset_to_color[1:]
@@ -522,6 +541,7 @@ def create_table(values, col_labels, act, s, max_=False, att=0):
         hide_index(). \
         background_gradient(subset='d(a₀,aₙ)', cmap=cm_green). \
         background_gradient(subset=['zeroed neurons'], cmap=cm_green). \
+        background_gradient(subset=['params'], cmap=cm_green_inv). \
         set_properties(**{'width': '250px'}, **{'text-align': 'center'}). \
         set_caption(act + ' [{}]'.format(s.upper())). \
         set_table_styles([{'selector': 'caption', 'props': [('color', 'black'), ('font-size', '25px')]},

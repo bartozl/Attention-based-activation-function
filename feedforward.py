@@ -1,12 +1,14 @@
+import argparse
+import json
+import os
+from datetime import timedelta
+from pathlib import Path
+from time import time
+
 import torch
 import torch.nn.functional as F
-import os
-import json
-import argparse
-from time import time
-from datetime import timedelta
+
 import utils
-from pathlib import Path
 
 
 def train(config):
@@ -88,7 +90,8 @@ def main(config):
           f'seed: {torch.initial_seed()}\n'
           f'dataset: {config["dataset"]}\n'
           f'len_train: {config["len_train"]}\n'
-          f'len_test:{config["len_test"]}\n')
+          f'len_test:{config["len_test"]}\n'
+          f'jit: {config["jit"]}\n')
     print('...Training...')
     train(config)
 
@@ -104,11 +107,13 @@ if __name__ == '__main__':
     parser.add_argument("-hr_test", type=float, default=None)
     parser.add_argument("-config", type=str, required=True)
     parser.add_argument("-colab", action="store_true")
+    parser.add_argument("-jit", action="store_true", default=False)  # can't plot results computed with jit
     args = parser.parse_args()
     hr_test = args.hr_test
     # assert hr_test in [None, "1", "2"], "hr_test must be 1, 2 or None!!!"
     run_configs = utils.load_run_config(args.config)
-    configs = utils.generate_configs(run_configs, hr_test, args.colab, args.config)  # list of configurations (=dict) to be trained
+    configs = utils.generate_configs(run_configs, hr_test, args.colab, args.config,
+                                     args.jit)  # list of configurations (=dict) to be trained
     time0 = time()  # total run time
     for i, conf in enumerate(configs):
         print(f'\n[{i + 1}/{len(configs)}] {conf["save_dir"]}')
