@@ -29,16 +29,16 @@ MLP_neg = ['MLP1_neg', 'MLP_ATT_neg']
 # ============================================= #
 
 # create the directory to store the experiments
-def create_save_dir(dataset, combinator, init, normalize, act_list, lambda_l1, drop, hr_test, config_name):
+def create_save_dir(dataset, combinator, init, normalize, act_list, lambda_l1, drop, hr_test, config_name, run_name):
     acts = '_'.join(act_list)
     if combinator == 'Linear':
-        save_dir = f'../experiments/{dataset}/{combinator}/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
+        save_dir = f'../experiments/{dataset}/{run_name}/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
     elif combinator in MLP_LIST:
-        save_dir = f'../experiments/{dataset}/MLP/{combinator}/init_None/norm_{normalize}/{acts}/{lambda_l1}/'
+        save_dir = f'../experiments/{dataset}/MLP/{run_name}/init_None/norm_{normalize}/{acts}/{lambda_l1}/'
     elif combinator in ATT_LIST:
-        save_dir = f'../experiments/{dataset}/ATT/{combinator}/init_None/norm_{normalize}/drop_{drop}/{acts}/{lambda_l1}/'
+        save_dir = f'../experiments/{dataset}/ATT/{run_name}/init_None/norm_{normalize}/drop_{drop}/{acts}/{lambda_l1}/'
     elif combinator == 'None':
-        save_dir = f'../experiments/{dataset}/{combinator}/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
+        save_dir = f'../experiments/{dataset}/{run_name}/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
     else:
         print('ERROR: unknown combinator')
         sys.exit(0)
@@ -107,8 +107,9 @@ def generate_configs(run_config, hr_test, colab, config_name, jit):
                                                                                           run_config['batch_size'],
                                                                                           colab)
                                 reset_seed(run_config['random_seed'])
+                                run_name = f'{combinator}_{run_config["network_type"]}_{run_config["nn_layers"]}'
                                 save_dir = create_save_dir(dataset, combinator, init_, norm_, act_,
-                                                           lamb_, drop_, hr_test, config_name)
+                                                           lamb_, drop_, hr_test, config_name, run_name)
                                 if (save_dir is False) or (save_dir in savedirs):
                                     continue
                                 savedirs.append(save_dir)
@@ -138,7 +139,7 @@ def generate_configs(run_config, hr_test, colab, config_name, jit):
                                           'device': device,
                                           'save_every': 1,
                                           'combinator': combinator,
-                                          'run_name': combinator,  # TODO select a proper run_name
+                                          'run_name': run_name,
                                           'random_seed': run_config['random_seed'],
                                           'batch_size': run_config['batch_size'],
                                           'dataset': dataset,
@@ -309,10 +310,12 @@ def compute_activations(results, epoch, path):
     # state_dict_filt = {'.'.join(k.split('.')[2:]): v for k, v in state_dict.items() if ''}  # adjust the name of the parameters
     state_dict_filt = {}
     for k, v in state_dict.items():
-        print(k)
-        # if k[0:11] == 'layers_list':
-        if k.split('.')[2] == 'MLP_list':
+        # print(k)
+        k_split = k.split('.')
+        if results['combinator'] != 'Linear' and k_split[2] == 'MLP_list':
             state_dict_filt[k[14:]] = v
+        elif results['combinator'] == 'Linear' and k_split[-1] == 'alpha':
+            state_dict_filt['alpha'] = v
     input_, neurons, _ = create_input(results)
     mix = MIX(results['act_fn'], results['combinator'], neurons, results['normalize'], results['init']).to(device)
     mix.eval()  # evaluation mode
@@ -391,6 +394,8 @@ def fill_col_labels(results, max_=False, att=False, n_epochs=20):
     col_labels.append('drop')
     col_labels.append('normaliz')
     col_labels.append('lambda')
+    col_labels.append('nn_type')
+    col_labels.append('layers')
     col_labels.append('params')
     if att == 0:
         col_labels.append('init')
@@ -419,6 +424,8 @@ def fill_row_values(results, path, act='', max_=False, att=0, hr=-1, n_epochs=20
     values_train_temp.append(alpha_dropout if alpha_dropout != 'None' else '-')
     values_train_temp.append(results['normalize'] if results['normalize'] != 'None' else '-')
     values_train_temp.append(results['lambda_l1'])
+    values_train_temp.append(results['network_type'])
+    values_train_temp.append(results['nn_layers'])
     values_train_temp.append(results['parameters'])
     if att == 0:
         values_train_temp.append(results['init'] if results['init'] != 'None' else '-')

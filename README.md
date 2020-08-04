@@ -62,15 +62,17 @@ with
 python feedforward.py -config config_name.json
 ```
 
-
+**config_name** = {_basic_, _linear_, _non_linear_}
 
 #### Plot
 
 ```
-python plot.py -args
+python plot.py -args -dataset
 ```
 
-where **args** can be: _activations_, _accuracy_, _table_, _table_max_
+**args** = {activations_, _accuracy_, _table_, _table_max_}
+
+**dataset** = {MNIST, CIFAR10}
 
 
 
@@ -84,7 +86,7 @@ where **args** can be: _activations_, _accuracy_, _table_, _table_max_
 | lambda_l1     | list of floats           | (0.0, 0.00000005)                                            | l1 regularization scaling factor                             |
 | normalize     | list of strings          | ["None", "Sigmoid", "Softmax"]                               | alpha normalization (only for Linear combinator)             |
 | init          | list of strings          | ["None", "random", "uniform", "normal"]                      | alpha initialization (only for Linear combinator)            |
-| dataset       | list of strings          | ["MNIST", "CIFAR10"]                                         | datasets available                                           |
+| dataset       | list of strings          | ["MNIST", "CIFAR10"]                                         | available datasets                                           |
 | subset        | float                    | (0, 1)                                                       | portion of dataset used                                      |
 | epochs        | integer                  | (0, inf)                                                     | number of epochs for training and test                       |
 | random_seed   | integer                  | (0, inf)                                                     | allows reproducibility                                       |
@@ -98,9 +100,9 @@ where **args** can be: _activations_, _accuracy_, _table_, _table_max_
 
 - **feedforward.py** is the starting point, it contains the *main*, the *train* and the *test* functions
 - **utils.py** contains all the auxiliary functions, both for computations and plotting. The most relevant functions for computation is:
-  - *generate_configs*: based on run_config.json, create an array of configurations to run
-- **mixed_activations.py** contains the MIX module (i.e. the core of the project)
+  - *generate_configs*: based on run_config.json, create a list of configurations to be run
+- **mixed_activations.py** contains the MIX module (i.e. the core of the project). Also a jit version is implemented
 - **modules.py** contains auxiliary modules, such as:
-  - *Network*: the neural network used for the experiments
+  - *Network*: the neural network used for the experiments. Also a jit version is implemented
   - *MLP1*, *MLP2*, *MLP_ATT*, .... : all small networks needed in the MIX module
-- **plot.py** contains all plotting functions
+- **plot.py** contains all plotting functions. Jit computed models are not plottable.

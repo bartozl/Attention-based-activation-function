@@ -1,25 +1,44 @@
 {
-    "network_type": 2,
-    "nn_layers": 5,
-    "act_fn": [
-        [
-            "relu"
-        ]
+  "network_type": 2,
+  "nn_layers": 5,
+  "act_fn": [
+    [
+      "antirelu"
     ],
-    "lambda_l1": [
-        0.0
+    [
+      "identity"
     ],
-    "normalize": [
-        "None"
+    [
+      "relu"
     ],
-    "init": [
-        "None"
+    [
+      "sigmoid"
     ],
-    "dataset": ["CIFAR10", "MNIST"],
-    "subset": 1,
-    "epochs": 50,
-    "random_seed": 1,
-    "combinator": ["None"],
-    "batch_size": 256,
-    "alpha_dropout": [0.0]
+    [
+      "tanh"
+    ]
+  ],
+  "lambda_l1": [
+    0.0
+  ],
+  "normalize": [
+    "None"
+  ],
+  "init": [
+    "None"
+  ],
+  "dataset": [
+    "CIFAR10",
+    "MNIST"
+  ],
+  "subset": 1,
+  "epochs": 50,
+  "random_seed": 1,
+  "combinator": [
+    "None"
+  ],
+  "batch_size": 256,
+  "alpha_dropout": [
+    0.0
+  ]
 }

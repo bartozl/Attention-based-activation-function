@@ -1,21 +1,33 @@
 {
-  "network_type": 1,
-  "nn_layers": 3,
+  "network_type": 2,
+  "nn_layers": 2,
   "act_fn": [
     [
       "antirelu",
       "identity",
       "relu",
       "sigmoid"
+    ],
+    [
+      "antirelu",
+      "identity",
+      "sigmoid",
+      "tanh"
+    ],
+    [
+      "identity",
+      "relu",
+      "sigmoid",
+      "tanh"
     ]
   ],
   "lambda_l1": [
     0.0
   ],
   "normalize": [
+    "None",
     "Sigmoid",
-    "Softmax",
-    "None"
+    "Softmax"
   ],
   "init": [
     "normal",
@@ -23,7 +35,8 @@
     "uniform"
   ],
   "dataset": [
-    "CIFAR10"
+    "CIFAR10",
+    "MNIST"
   ],
   "subset": 1,
   "epochs": 50,

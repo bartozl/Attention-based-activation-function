@@ -125,7 +125,7 @@ def plot_table_max(path_dict, save_path, limit):
                 col_labels = utils.fill_col_labels(results, max_=True, att=2)
             temp_train, temp_test = utils.fill_row_values(results, path, act, max_=True, att=2)
             # print(temp_test[9])
-            if True not in np.where(temp_test[10] >= limit, True, False):
+            if True not in np.where(temp_test[12] >= limit, True, False):
                 continue
             values_train.append(temp_train)
             values_test.append(temp_test)

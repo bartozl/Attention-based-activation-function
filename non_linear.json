@@ -5,6 +5,18 @@
     [
       "antirelu",
       "identity",
+      "relu",
+      "sigmoid"
+    ],
+    [
+      "antirelu",
+      "identity",
+      "sigmoid",
+      "tanh"
+    ],
+    [
+      "identity",
+      "relu",
       "sigmoid",
       "tanh"
     ]
@@ -19,13 +31,15 @@
     "None"
   ],
   "dataset": [
-    "MNIST"
+    "MNIST",
+    "CIFAR10"
   ],
-  "subset": 0.1,
+  "subset": 1,
   "epochs": 50,
   "random_seed": 1,
   "combinator": [
-    "MLP_ATT_neg"
+    "MLP_ATT",
+    "MLP2"
   ],
   "batch_size": 256,
   "alpha_dropout": [
