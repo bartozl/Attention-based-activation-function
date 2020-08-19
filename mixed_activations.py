@@ -42,6 +42,12 @@ class MIX(nn.Module):
                 self.beta = nn.Parameter(torch.FloatTensor(neurons).uniform_(-0.5, 0.5),
                                          requires_grad=True).to(self.device)
 
+        elif combinator == 'Hybrid':
+            self.MLP_list = nn.ModuleList([])
+            for i in range(neurons // 3):
+                self.MLP_list.extend([self.act_module['relu']])
+                self.MLP_list.extend([self.act_module['relu']])
+                self.MLP_list.extend([MLP('MLP1')])
         elif combinator == 'MLPr':  # MLPr is a mix of MLP1, MLP2
             self.MLP_list = nn.ModuleList([])
             for i in range(neurons // 2):
@@ -117,6 +123,15 @@ class MIX(nn.Module):
                         else:
                             act_by_inspection = activations[:, :, -1].unsqueeze(-1)  # tanh activation
                         res = torch.where(condition, res, act_by_inspection).squeeze(-1)
+            elif combinator == 'Hybrid':
+                res = []
+                for i, mod in enumerate(self.MLP_list):
+                    if mod == self.act_module['relu']:
+                        res.append(mod(s[:, i]).unsqueeze(-1))
+                    else:
+                        res.append(mod(activations[:, i, :]))
+                res = torch.cat(res, dim=-1)
+
             else:  # combinator in ['MLP1', 'MLP2', 'MLP3', 'MLP4', 'MLP5', 'MLPr', 'MLP1_neg]
                 # the results will be computed by an MLP with dim (input, output) = (n,1) where n = num. of act_fn
                 res = torch.cat([mod(activations[:, i, :]) for i, mod in enumerate(self.MLP_list)], dim=-1)
@@ -241,7 +256,6 @@ class MIX_jit(nn.Module):
                     alpha_max, idx = torch.max(alpha, dim=2)
                     mask = torch.arange(alpha.size(-1)).reshape(1, 1, -1) == idx.unsqueeze(-1)
                     res = activations[mask].reshape(alpha_max.shape)
-
                     if self.hr_test != 0.0:
                         # if the computed activation is not larger enough than the others, use a default activation.
                         alpha_mid_range = torch.abs(torch.max(alpha, dim=-1, keepdim=True)[0] -

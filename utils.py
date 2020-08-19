@@ -39,6 +39,8 @@ def create_save_dir(dataset, combinator, init, normalize, act_list, lambda_l1, d
         save_dir = f'../experiments/{dataset}/ATT/{run_name}/init_None/norm_{normalize}/drop_{drop}/{acts}/{lambda_l1}/'
     elif combinator == 'None':
         save_dir = f'../experiments/{dataset}/{run_name}/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
+    elif combinator == 'Hybrid':
+        save_dir = f'../experiments/{dataset}/Hybrid/{run_name}/init_{init}/norm_{normalize}/{acts}/{lambda_l1}/'
     else:
         print('ERROR: unknown combinator')
         sys.exit(0)
@@ -335,7 +337,6 @@ def create_path_dict(save_path):
     """
     will create a dictionary with MIX of activation functions as keys(),
     and as values() a list of the paths where their result.json file are.
-
     eg: path_dict = {'antirelu_identity_relu_sigmoid': ['./res/init_normal/norm_None/0/',
                                                 './res/init_normal/norm_None/0.1/',
                                                 ...],

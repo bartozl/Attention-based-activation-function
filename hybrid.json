@@ -1,0 +1,34 @@
+{
+  "network_type": 2,
+  "nn_layers": 2,
+  "act_fn": [
+    [
+      "antirelu",
+      "identity",
+      "relu",
+      "sigmoid"
+    ]
+  ],
+  "lambda_l1": [
+    0.0
+  ],
+  "normalize": [
+    "None"
+  ],
+  "init": [
+    "None"
+  ],
+  "dataset": [
+    "CIFAR10"
+  ],
+  "subset": 1,
+  "epochs": 50,
+  "random_seed": 1,
+  "combinator": [
+    "Hybrid"
+  ],
+  "batch_size": 512,
+  "alpha_dropout": [
+    0.0
+  ]
+}
