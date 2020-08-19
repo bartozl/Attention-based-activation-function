@@ -37,10 +37,10 @@ class MIX(nn.Module):
                                           requires_grad=True)
 
         elif combinator in MLP_list + ATT_list:  # create a list of MLP
-            self.MLP_list = nn.ModuleList([MLP(combinator) for _ in range(neurons)])
+            self.MLP_list = nn.ModuleList([MLP(combinator).to(self.device) for _ in range(neurons)]).to(self.device)
             if combinator == 'MLP_ATT_b':
                 self.beta = nn.Parameter(torch.FloatTensor(neurons).uniform_(-0.5, 0.5),
-                                         requires_grad=True)
+                                         requires_grad=True).to(self.device)
 
         elif combinator == 'MLPr':  # MLPr is a mix of MLP1, MLP2
             self.MLP_list = nn.ModuleList([])
@@ -82,6 +82,8 @@ class MIX(nn.Module):
 
                 alpha = torch.cat([self.act_module['softmax'](mod(activations[:, i, :])).unsqueeze(1)
                                    for i, mod in enumerate(self.MLP_list)], dim=1)  # e.g. [256, 128, 4]
+                # print('activations:', activations.device, 'alpha:', alpha.device)
+
 
                 # params = torch.cat([x.view(-1) for mod in self.MLP_list for x in mod.parameters()], dim=-1)  # l1_pen
 

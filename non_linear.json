@@ -1,6 +1,6 @@
 {
   "network_type": 2,
-  "nn_layers": 2,
+  "nn_layers": 3,
   "act_fn": [
     [
       "antirelu",
@@ -39,9 +39,11 @@
   "random_seed": 1,
   "combinator": [
     "MLP_ATT",
+    "MLP_ATT_neg",
+    "MLP1",
     "MLP2"
   ],
-  "batch_size": 256,
+  "batch_size": 512,
   "alpha_dropout": [
     0.0
   ]

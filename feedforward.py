@@ -92,6 +92,7 @@ def main(config):
           f'len_train: {config["len_train"]}\n'
           f'len_test:{config["len_test"]}\n'
           f'jit: {config["jit"]}\n')
+
     print('...Training...')
     train(config)
 
@@ -102,6 +103,7 @@ def main(config):
 
 
 if __name__ == '__main__':
+    # with torch.autograd.profiler.profile(use_cuda=True) as prof:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="MNIST")
     parser.add_argument("-hr_test", type=float, default=None)

@@ -37,7 +37,7 @@
   "combinator": [
     "None"
   ],
-  "batch_size": 256,
+  "batch_size": 512,
   "alpha_dropout": [
     0.0
   ]
