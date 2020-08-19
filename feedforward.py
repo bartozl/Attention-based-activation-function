@@ -86,7 +86,7 @@ def test(config):
 def main(config):
     train_acc_per_epoch, test_acc_per_epoch = [], []  # store accuracies history
 
-    print(f'\ndevice: {torch.cuda.get_device_name(torch.cuda.current_device())}\n'
+    print(f'\ndevice: {torch.cuda.get_device_name(torch.cuda.current_device())}\n' if torch.cuda.is_available() else'cpu'
           f'seed: {torch.initial_seed()}\n'
           f'dataset: {config["dataset"]}\n'
           f'len_train: {config["len_train"]}\n'
